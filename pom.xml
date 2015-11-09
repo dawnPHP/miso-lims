@@ -261,6 +261,35 @@
       <id>springsource-snapshot</id>
       <url>http://repository.springsource.com/maven/bundles/snapshot</url>
     </repository>
+    
+    <repository>
+   <id>fluxion-snapshots-repo</id>
+   <name>TGAC Fluxion Snapshots Repository</name>
+   <url>https://repos.tgac.ac.uk/maven/fluxion/snapshots</url>
+   <releases>
+    <enabled>false</enabled>
+    <updatePolicy>always</updatePolicy>
+   </releases>
+   <snapshots>
+    <enabled>true</enabled>
+    <updatePolicy>always</updatePolicy>
+   </snapshots>
+  </repository>
+
+  <repository>
+   <id>fluxion-releases-repo</id>
+   <name>TGAC Fluxion Releases Repository</name>
+   <url>https://repos.tgac.ac.uk/maven/fluxion/releases</url>
+   <releases>
+    <enabled>true</enabled>
+    <updatePolicy>always</updatePolicy>
+   </releases>
+   <snapshots>
+    <enabled>false</enabled>
+    <updatePolicy>always</updatePolicy>
+   </snapshots>
+  </repository>
+    
   </repositories>
 
   <pluginRepositories>
@@ -298,6 +327,10 @@
       <url>https://maven.atlassian.com/public</url>
     </pluginRepository>
 
+    <pluginRepository>
+        <id>onejar-maven-plugin.googlecode.com</id>
+        <url>http://onejar-maven-plugin.googlecode.com/svn/mavenrepo</url>
+    </pluginRepository>
   </pluginRepositories>
 
   <!-- Required Build Plugins -->
