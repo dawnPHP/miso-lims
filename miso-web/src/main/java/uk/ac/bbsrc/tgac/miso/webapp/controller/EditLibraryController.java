@@ -24,6 +24,8 @@
 package uk.ac.bbsrc.tgac.miso.webapp.controller;
 
 import static uk.ac.bbsrc.tgac.miso.core.util.LimsUtils.isStringEmptyOrNull;
+import static org.apache.commons.lang.StringEscapeUtils.escapeJavaScript;
+import static org.apache.commons.lang.StringEscapeUtils.unescapeJavaScript;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -60,6 +62,8 @@ import com.eaglegenomics.simlims.core.SecurityProfile;
 import com.eaglegenomics.simlims.core.User;
 import com.eaglegenomics.simlims.core.manager.SecurityManager;
 
+import net.sf.json.JSONObject;
+import net.sourceforge.fluxion.ajax.util.JSONUtils;
 import uk.ac.bbsrc.tgac.miso.core.data.AbstractLibrary;
 import uk.ac.bbsrc.tgac.miso.core.data.AbstractLibraryQC;
 import uk.ac.bbsrc.tgac.miso.core.data.ChangeLog;
@@ -582,5 +586,105 @@ public class EditLibraryController {
       }
       throw ex;
     }
+  }
+  
+  /* HOT */
+  @RequestMapping(value = "tagBarcodesJson", method = RequestMethod.GET)
+  public @ResponseBody JSONObject tagBarcodesJson(@RequestParam("strategy") String barcodeStrategy,
+      @RequestParam("position") String position) throws IOException {
+    final JSONObject rtn = new JSONObject();
+    final List<JSONObject> rtnList = new ArrayList<JSONObject>();
+    try {
+      if (!isStringEmptyOrNull(barcodeStrategy)) {
+        final TagBarcodeStrategy tbs = tagBarcodeStrategyResolverService.getTagBarcodeStrategy(barcodeStrategy);
+        if (tbs != null) {
+          final List<TagBarcode> tagBarcodes = new ArrayList<TagBarcode>(tbs.getApplicableBarcodesForPosition(Integer.parseInt(position)));
+          for (final TagBarcode tb : tagBarcodes) {
+            final JSONObject obj = new JSONObject();
+            obj.put("id", tb.getId());
+            obj.put("name", tb.getName());
+            obj.put("sequence", tb.getSequence());
+            rtnList.add(obj);
+          }
+        }
+      }
+    } catch (Exception e) {
+      log.error(e.getMessage());
+      e.printStackTrace();
+    }
+    rtn.put("tagBarcodes", rtnList);
+    return rtn;
+  }
+
+  /* HOT */
+  @ModelAttribute("referenceDataJson")
+  public String referenceDataJson() throws IOException {
+    final JSONObject rtn = new JSONObject();
+    final List<String> selectionTypes = new ArrayList<String>();
+    for (final LibrarySelectionType lst : populateLibrarySelectionTypes()) {
+      selectionTypes.add(lst.getName());
+    }
+    final List<String> strategyTypes = new ArrayList<String>();
+    for (final LibrarySelectionType lst : populateLibrarySelectionTypes()) {
+      strategyTypes.add(lst.getName());
+    }
+
+    rtn.put("platformNames", populatePlatformNames());
+    rtn.put("selectionTypes", selectionTypes);
+    rtn.put("strategyTypes", strategyTypes);
+
+    return escapeJavaScript(rtn.toString());
+  }
+
+  /* HOT */
+  @RequestMapping(value = "libraryTypesJson", method = RequestMethod.GET)
+  public @ResponseBody JSONObject libraryTypesJson(@RequestParam("platform") String platform) throws IOException {
+    final JSONObject rtn = new JSONObject();
+    final List<String> rtnLibTypes = new ArrayList<String>();
+    if (!isStringEmptyOrNull(platform)) {
+      final Collection<LibraryType> libTypes = populateLibraryTypesByPlatform(platform);
+      for (final LibraryType type : libTypes) {
+        rtnLibTypes.add(type.getDescription());
+      }
+    }
+    rtn.put("libraryTypes", rtnLibTypes);
+    return rtn;
+  }
+
+  /* HOT */
+  @RequestMapping(value = "barcodePositionsJson", method = RequestMethod.GET)
+  public @ResponseBody JSONObject barcodePositionsJson(@RequestParam("strategy") String strategy) {
+    JSONObject rtn;
+    if (!isStringEmptyOrNull(strategy)) {
+      log.warn("strategy unescaped = " + strategy);
+      strategy = unescapeJavaScript(strategy.trim());
+      log.warn("strategy = " + strategy);
+      System.out.println("strategy = " + strategy);
+      final TagBarcodeStrategy tbs = tagBarcodeStrategyResolverService.getTagBarcodeStrategy(strategy);
+      if (tbs != null) {
+        rtn = new JSONObject();
+        rtn.put("numApplicableBarcodes", tbs.getNumApplicableBarcodes());
+      } else {
+        rtn = JSONUtils.SimpleJSONError("No strategy found with the name: \"" + strategy + "\"");
+      }
+    } else {
+      rtn = JSONUtils.SimpleJSONError("No valid strategy given");
+    }
+    return rtn;
+  }
+
+  /* HOT */
+  @RequestMapping(value = "barcodeStrategiesJson", method = RequestMethod.GET)
+  public @ResponseBody JSONObject barcodeStrategiesJson(@RequestParam("platform") String platform) throws IOException {
+    final JSONObject rtn = new JSONObject();
+
+    if (platform != null && !"".equals(platform)) {
+      final List<String> rtnStrat = new ArrayList<String>();
+      for (final TagBarcodeStrategy t : tagBarcodeStrategyResolverService.getTagBarcodeStrategiesByPlatform(PlatformType.get(platform))) {
+        rtnStrat.add(t.getName());
+      }
+      rtn.put("barcodeKits", rtnStrat);
+    }
+    return rtn;
   }
 }

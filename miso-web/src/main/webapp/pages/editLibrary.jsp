@@ -30,12 +30,16 @@
 --%>
 <%@ include file="../header.jsp" %>
 <script src="<c:url value='/scripts/jquery/js/jquery.breadcrumbs.popup.js'/>" type="text/javascript"></script>
-<script src="<c:url value='/scripts/datatables_utils.js?ts=${timestamp.time}'/>" type="text/javascript"></script>
-<script src="<c:url value='/scripts/jquery/datatables/js/jquery.dataTables.min.js'/>" type="text/javascript"></script>
-<link href="<c:url value='/scripts/jquery/datatables/css/jquery.dataTables.css'/>" rel="stylesheet" type="text/css">
 
 <script src="<c:url value='/scripts/stats_ajax.js?ts=${timestamp.time}'/>" type="text/javascript"></script>
-
+<script
+    src="<c:url value='/scripts/handsontable/dist/handsontable.full.js'/>"
+    type="text/javascript"></script>
+<script
+    src="<c:url value='/scripts/handsontable_renderers.js'/>"
+    type="text/javascript"></script>
+<link rel="stylesheet" media="screen"
+    href="/scripts/handsontable/dist/handsontable.full.css">
 <script type="text/javascript" src="<c:url value='/scripts/parsley/parsley.min.js'/>"></script>
 
 <div id="maincontent">
@@ -957,523 +961,341 @@
   </c:if>
 </c:if>
 
-<c:if test="${library.id == 0}">
-</div>
-<div id="tab-2" align="center">
-  <div class="breadcrumbs">
-    <ul>
-      <li>
-        <a href="/">Home</a>
-      </li>
-      <li>
-        <div class="breadcrumbsbubbleInfo">
-          <div class="trigger">
-            <a href='<c:url value="/miso/project/${library.sample.project.id}"/>'>${library.sample.project.name}</a>
-          </div>
-          <div class="breadcrumbspopup">
-              ${library.sample.project.alias}
-          </div>
+        <c:if test="${library.id == 0}">
+    </div>
+    <div id="tab-2">
+        <div class="breadcrumbs">
+            <ul>
+                <li><a href="/">Home</a></li>
+                <li>
+                    <div class="breadcrumbsbubbleInfo">
+                        <div class="trigger">
+                            <a
+                                href='<c:url value="/miso/project/${library.sample.project.id}"/>'>${library.sample.project.name}</a>
+                        </div>
+                        <div class="breadcrumbspopup">
+                            ${library.sample.project.alias}</div>
+                    </div>
+                </li>
+                <li>
+                    <div class="breadcrumbsbubbleInfo">
+                        <div class="trigger">
+                            <a href='<c:url value="/miso/sample/${library.sample.id}"/>'>${library.sample.name}</a>
+                        </div>
+                        <div class="breadcrumbspopup">${library.sample.alias}</div>
+                    </div>
+                </li>
+            </ul>
         </div>
-      </li>
-      <li>
-        <div class="breadcrumbsbubbleInfo">
-          <div class="trigger">
-            <a href='<c:url value="/miso/sample/${library.sample.id}"/>'>${library.sample.name}</a>
-          </div>
-          <div class="breadcrumbspopup">
-              ${library.sample.alias}
-          </div>
-        </div>
-      </li>
-    </ul>
-  </div>
-  <h1>Create Libraries
-    <button id="bulkLibSaveButton" onClick="submitBulkLibraries();"
-            class="fg-button ui-state-default ui-corner-all">Save
-    </button>
-  </h1>
-  <br/>
+        <h1>
+            Create Libraries
+            <button id="bulkLibSaveButton" onClick="submitBulkLibraries();"
+                class="fg-button ui-state-default ui-corner-all">Save</button>
+        </h1>
+        <br /> This system will create <b>ONE</b> library for each of the
+        selected samples below: <br />
+        <div id='container'></div>
+        <div id="pager"></div>
 
-  This system will create <b>ONE</b> library for each of the selected samples below:
-  <br/>
-  <table id="cinput" class="display">
-    <thead>
-    <tr>
-      <th style="width: 5%">Select <span sel="none" header="select" class="ui-icon ui-icon-arrowstop-1-s"
-                                         style="float:right"
-                                         onclick="DatatableUtils.toggleSelectAll('#cinput', this);"></span></th>
-      <th style="width: 10%">Sample</th>
-      <th style="width: 10%">Description <span header="description" class="ui-icon ui-icon-arrowstop-1-s"
-                                               style="float:right"
-                                               onclick="DatatableUtils.fillDown('#cinput', this);"></span></th>
-      <th style="width: 5%">Paired <span header="paired" class="ui-icon ui-icon-arrowstop-1-s" style="float:right"
-                                         onclick="DatatableUtils.fillDown('#cinput', this);"></span></th>
-      <th style="width: 10%">Platform <span header="platform" class="ui-icon ui-icon-arrowstop-1-s"
-                                            style="float:right"
-                                            onclick="DatatableUtils.fillDown('#cinput', this);"></span></th>
-      <th style="width: 10%">Type <span header="libraryType" class="ui-icon ui-icon-arrowstop-1-s"
-                                        style="float:right"
-                                        onclick="DatatableUtils.fillDown('#cinput', this);"></span></th>
-      <th style="width: 10%">Selection <span header="selectionType" class="ui-icon ui-icon-arrowstop-1-s"
-                                             style="float:right"
-                                             onclick="DatatableUtils.fillDown('#cinput', this);"></span></th>
-      <th style="width: 10%">Strategy <span header="strategyType" class="ui-icon ui-icon-arrowstop-1-s"
-                                            style="float:right"
-                                            onclick="DatatableUtils.fillDown('#cinput', this);"></span></th>
-      <th style="width: 10%">Barcode Kit <span header="barcodeStrategy" class="ui-icon ui-icon-arrowstop-1-s"
-                                               style="float:right"
-                                               onclick="Library.ui.fillDownTagBarcodeStrategySelects('#cinput', this);"></span>
-      </th>
-      <th style="width: 10%">Tag Barcodes <span header="tagBarcodes" class="ui-icon ui-icon-arrowstop-1-s"
-                                                style="float:right"
-                                                onclick="Library.ui.fillDownTagBarcodeSelects('#cinput', this);"></span>
-      </th>
-      <th style="width: 10%">Location Barcode <span header="locationBarcode" class="ui-icon ui-icon-arrowstop-1-s"
-                                                    style="float:right"
-                                                    onclick="DatatableUtils.fillDown('#cinput', this);"></span>
-      </th>
-    </tr>
-    </thead>
-    <tbody>
-    </tbody>
-  </table>
-  <div id="pager"></div>
-
-</div>
+    </div>
 </div>
 
 <script type="text/javascript">
-var headers = ['rowsel',
-               'parentSample',
-               'description',
-               'paired',
-               'platform',
-               'libraryType',
-               'selectionType',
-               'strategyType',
-               'barcodeStrategy',
-               'tagBarcodes',
-               'locationBarcode'];
+var hot;
+
+var dropdownRef = jQuery.parseJSON('${referenceDataJson}');
+  function getValues(key, obj_arr) {
+      var rtn = [];
+      for (obj of obj_arr) {
+          rtn.push(obj[key]);
+      }
+      return rtn;
+  }
+
+var colConf = [ {
+    header : 'Sample',
+    type : 'text',
+    renderer: defaultTextRenderer
+
+}, {
+    header : 'Description',
+    type : 'text',
+    renderer: defaultTextRenderer
+}, {
+    header : 'Paired',
+    data : 'paired',
+    type : 'checkbox',
+    renderer: defaultCheckboxRenderer
+}, {
+    header : 'Platform',
+    data : 'platform',
+    type : 'dropdown',
+    source: dropdownRef['platformNames'], //all platforms
+    renderer: defaultDropdownRenderer,
+}, {
+    header : 'Type',
+    data : 'type',
+    type : 'dropdown',
+    renderer: defaultDropdownRenderer
+}, {
+    header : 'Selection',
+    data : 'selection',
+    type : 'dropdown',
+    source: dropdownRef['selectionTypes'], //all LibrarySelectionType
+    renderer: defaultDropdownRenderer
+}, {
+    header : 'Strategy',
+    data : 'strategy',
+    type : 'dropdown',
+    source: dropdownRef['strategyTypes'], //all LibraryStrategyType
+    renderer: defaultDropdownRenderer
+}, {
+    header : 'Barcode Kit', //barcodeStrategy get method.  based on platform.
+    data : 'barcode_kit',
+    type : 'dropdown',
+    renderer: defaultDropdownRenderer
+}, {
+    header : 'Tag Barcodes', //tagBarcodes
+    data : '',
+    renderer : multiDropdownRenderer,
+    editor: false,
+    readonly: true
+}, {
+    header : 'Location Barcodes', //locationBarcode
+    data : 'location_barcodes',
+    type : 'dropdown',
+    renderer: defaultDropdownRenderer
+
+} ];
+
+
+function submitBulkLibraries() {
+    jQuery('#bulkLibSaveButton').attr('disabled', 'disabled');
+    jQuery('#bulkLibSaveButton').html("Processing...");
+    var payload = [];
+    var ok = true;
+    console.log(hot.getData());
+    for(dict of hot.getData()) {
+        obj = {};
+        obj['parentSample'] = dict[0];
+        obj['description'] = dict[1];
+        obj['paired'] = dict[2];
+        obj['platform'] = dict[3];
+        obj['libraryType'] = dict[4];
+        obj['selectionType'] = dict[5];
+        obj['strategyType'] = dict[6];
+        obj['barcodeStrategy'] = dict[7];
+        obj['tagBarcodes'] = dict[8];
+        obj['locationBarcode'] = dict[9];
+        obj['identificationBarcode'] = dict[9];
+        payload.push(JSON.stringify(obj));
+    }
+    //some validation
+    if(ok) {
+        Fluxion.doAjax(
+           'libraryControllerHelperService',
+           'bulkSaveLibraries',
+           {
+               'projectId':${library.sample.project.id},
+               'libraries': "[" + payload.join(',') + "]",
+               'url': ajaxurl
+           },
+           {'doOnSuccess': function (json) {
+                console.log('magical christmas!');
+/*           window.location.href = '<c:url value='/miso/project/${library.sample.project.id}'/>';
+ */        }
+           });
+    }
+    else {
+      //jQuery(nodes[i]).css('background', '#CCFF99');
+      alert("Red data rows do not have one or more of the following: description, platform, library type, selection type or strategy type!");
+    }
+    jQuery('#bulkLibSaveButton').removeAttr('disabled');
+    jQuery('#bulkLibSaveButton').html("Save");
+}
 
 jQuery(document).ready(function () {
-  var oTable = jQuery('#cinput').dataTable({
-    "aoColumnDefs": [
-      {
-        "bUseRendered": false,
-        "aTargets": [ 0 ]
-      }
-    ],
-    "bPaginate": false,
-    "bInfo": false,
-    "bJQueryUI": true,
-    "bAutoWidth": true,
-    "bSort": false,
-    "bFilter": false,
-    "sDom": '<<"toolbar">f>r<t>ip>'
-  });
-
   var sampleArray = new Array();
   var sampleDescArray = new Array();
   <c:forEach items="${projectSamples}" var="s" varStatus="n">
-  sampleArray.push("${s.alias}");
-  sampleDescArray.push("${s.description}");
+      sampleArray.push("${s.alias}");
+      sampleDescArray.push("${s.description}");
   </c:forEach>
+  console.log('sampleArray');
+  console.log(sampleArray);
+  var data = [];
+  for(var i=0; i<sampleArray.length; i++){
+      data.push([sampleArray[i], sampleDescArray[i], false, null, null, null, null, null, null, null]);
+  }
 
-  jQuery.each(sampleArray, function (index, value) {
-    fnClickAddRow(
-      [ "",
-        value,
-        sampleDescArray[index],
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        ""]
-    );
-  });
+      jQuery("#tabs").tabs();
+      jQuery("#tabs").removeClass('ui-widget').removeClass('ui-widget-content');
 
-  jQuery('#cinput .rowSelect').click(function () {
-    if (jQuery(this).parent().hasClass('row_selected')) {
-      jQuery(this).parent().removeClass('row_selected');
-    }
-    else {
-      jQuery(this).parent().addClass('row_selected');
-    }
-  });
+      var container = document.getElementById('container');
+      hot = new Handsontable(container, {
+          debug: true,
+          minSpareRows : 1,
+          rowHeaders : true,
+          colHeaders : getValues('header', colConf),
+          contextMenu : false,
+          columns : colConf,
+          colWidths: [100, 70, 35, 53, 57, 100, 100, 100, 130, 100],
+          data : data,
+          enterBeginsEditing: false,
+          stretchH: 'all',
+          trimDropdown: false,
+          rowHeaders: false,
+          manualColumnResize: true,
+      });
 
-  setEditables(oTable);
+      function changePlatform(row, col, from, to) {
+            //update library types
+            jQuery.get( "../libraryTypesJson", {platform: to},
+                function(data) {
+                    hot.setDataAtCell(row, 4, '', 'platform change');
+                    hot.getCellMeta(row, 4).source = data['libraryTypes'];
+                });
+            //update barcode kits
+            jQuery.get( "../barcodeStrategiesJson", {platform: to},
+                function(data) {
+                    hot.setDataAtCell(row, 7, '', 'platform change');
+                    hot.getCellMeta(row, 7).source = data['barcodeKits'];
+                });
+            // clear tagBarcodes
+            hot.setDataAtCell(row, 8, -1, 'platform change');
 
-  jQuery("#tabs").tabs();
-  jQuery("#tabs").removeClass('ui-widget').removeClass('ui-widget-content');
+      }
+      function changeBarcodeKit(row, col, from, to) {
+          console.log('change barcode kit to ' + to);
+          jQuery.get("../barcodePositionsJson", {strategy : to},
+            function(posData) {
+                // set tagBarcodeData
+                hot.setDataAtCell(row, 8, -1, 'barcode kit change');
+                hot.setDataAtCell(row, 8, {'strategy': to, 'numPositions': posData['numApplicableBarcodes']}, 'barcode kit change');
+          });
+      }
+      Handsontable.hooks.add('afterChange', function (changes, source) {
+          //TODO: change listeners.
+            if('edit' === source) {
+                var row = changes[0][0];
+                var col = changes[0][1];
+                var from = changes[0][2];
+                var to = changes[0][3];
+                if('platform' === col) {
+                    changePlatform(row, col, from, to);
+                }
+                if('barcode_kit' === col) {
+                    changeBarcodeKit(row, col, from, to);
+                }
+            }
+        }, hot);
 });
 
-function fnClickAddRow(rowdata) {
-  var table = jQuery('#cinput').dataTable();
-  var a = [];
-  if (rowdata && rowdata.length > 0) {
-    a = table.fnAddData(rowdata);
-  }
-  else {
-    a = table.fnAddData(
-      [ "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        ""]
-    );
-  }
-
-  var nTr = table.fnSettings().aoData[a[0]].nTr;
-
-  jQuery(nTr.cells[0]).addClass("rowSelect");
-
-  for (var i = 2; i < headers.length; i++) {
-    jQuery(nTr.cells[i]).attr("name", headers[i]);
-    if (headers[i] === "platform") {
-      jQuery(nTr.cells[i]).addClass("platform");
+// custom renderer
+var tagBarcodeStore = {};
+function multiDropdownRenderer(instance, td, row, col, prop, value, cellProperties) {
+    // create cell
+    var container = jQuery('<div style="display:inline; width: 100%;">');
+    var textArea = document.createElement("select");
+    jQuery(textArea).css('width', '90%');
+    jQuery(textArea).attr('disabled', true);
+    var editBtn = jQuery('<span class="ui-icon ui-icon-pencil" style="display:inline-block; cursor: pointer;">');
+    jQuery(editBtn).attr('disabled', true);
+    var selects = [];
+    if (value === -1) {
+        // clear down
+        tagBarcodeStore[row] = [];
     }
-    else if (headers[i] === "libraryType") {
-      jQuery(nTr.cells[i]).addClass("libraryType");
-    }
-    else if (headers[i] === "selectionType") {
-      jQuery(nTr.cells[i]).addClass("selectionType");
-    }
-    else if (headers[i] === "strategyType") {
-      jQuery(nTr.cells[i]).addClass("strategyType");
-    }
-    else if (headers[i] === "barcodeStrategy") {
-      jQuery(nTr.cells[i]).addClass("barcodeStrategy");
-    }
-    else if (headers[i] === "tagBarcodes") {
-      jQuery(nTr.cells[i]).addClass("tagBarcodes");
-    }
-    else if (headers[i] === "paired") {
-      jQuery(nTr.cells[i]).addClass("passedCheck");
-    }
-    else {
-      jQuery(nTr.cells[i]).addClass("defaultEditable");
-    }
-  }
-}
-
-function setEditables(datatable) {
-  jQuery('#cinput .defaultEditable').editable(function (value, settings) {
-    return value;
-  },
-  {
-    callback: function (sValue, y) {
-      var aPos = datatable.fnGetPosition(this);
-      datatable.fnUpdate(sValue, aPos[0], aPos[1]);
-    },
-    submitdata: function (value, settings) {
-      return {
-        "row_id": this.parentNode.getAttribute('id'),
-        "column": datatable.fnGetPosition(this)[2]
-      };
-    },
-    onblur: 'submit',
-    placeholder: '',
-    "width": "100%"
-  });
-
-  jQuery("#cinput .platform").editable(function (value, settings) {
-    return value;
-  },
-  {
-    data: '{${platformNamesString}}',
-    type: 'select',
-    onblur: 'submit',
-    placeholder: '',
-    style: 'inherit',
-    callback: function (sValue, y) {
-      var aPos = datatable.fnGetPosition(this);
-      datatable.fnUpdate(sValue, aPos[0], aPos[1]);
-    },
-    submitdata: function (value, settings) {
-      return {
-        "row_id": this.parentNode.getAttribute('id'),
-        "column": datatable.fnGetPosition(this)[2]
-      };
-    },
-    "width": "100%"
-  });
-
-  jQuery("#cinput .libraryType").editable(function (value, settings) {
-    return value;
-  },
-  {
-    loadurl: '../../library/librarytypes',
-    loaddata: function (value, settings) {
-      DatatableUtils.collapseInputs('#cinput');
-      var row = datatable.fnGetPosition(this)[0];
-      var platform = datatable.fnGetData(row, 4);
-      if (!Utils.validation.isNullCheck(platform)) {
-        return {'platform': platform};
-      }
-      else {
-        alert("Please select a platform in this row");
-        return {'platform': ''};
-      }
-    },
-    type: 'select',
-    onblur: 'submit',
-    placeholder: '',
-    style: 'inherit',
-    callback: function (sValue, y) {
-      var aPos = datatable.fnGetPosition(this);
-      datatable.fnUpdate(sValue, aPos[0], aPos[1]);
-    },
-    submitdata: function (value, settings) {
-      return {
-        "row_id": this.parentNode.getAttribute('id'),
-        "column": datatable.fnGetPosition(this)[2]
-      };
-    },
-    "width": "100%"
-  });
-
-  jQuery("#cinput .selectionType").editable(function (value, settings) {
-    return value;
-  },
-  {
-    data: '{${librarySelectionTypesString}}',
-    type: 'select',
-    onblur: 'submit',
-    placeholder: '',
-    style: 'inherit',
-    callback: function (sValue, y) {
-      var aPos = datatable.fnGetPosition(this);
-      datatable.fnUpdate(sValue, aPos[0], aPos[1]);
-    },
-    submitdata: function (value, settings) {
-      return {
-        "row_id": this.parentNode.getAttribute('id'),
-        "column": datatable.fnGetPosition(this)[2]
-      };
-    },
-    "width": "100%"
-  });
-
-  jQuery("#cinput .strategyType").editable(function (value, settings) {
-    return value;
-  },
-  {
-    data: '{${libraryStrategyTypesString}}',
-    type: 'select',
-    onblur: 'submit',
-    placeholder: '',
-    style: 'inherit',
-    callback: function (sValue, y) {
-      var aPos = datatable.fnGetPosition(this);
-      datatable.fnUpdate(sValue, aPos[0], aPos[1]);
-    },
-    submitdata: function (value, settings) {
-      return {
-        "row_id": this.parentNode.getAttribute('id'),
-        "column": datatable.fnGetPosition(this)[2]
-      };
-    },
-    "width": "100%"
-  });
-
-  jQuery("#cinput .barcodeStrategy").editable(function (value, settings) {
-    return value;
-  },
-  {
-    loadurl: '../../library/barcodeStrategies',
-    loaddata: function (value, settings) {
-      DatatableUtils.collapseInputs('#cinput');
-      var row = datatable.fnGetPosition(this)[0];
-      var platform = datatable.fnGetData(row, 4);
-      if (!Utils.validation.isNullCheck(platform)) {
-        return {'platform': platform};
-      }
-      else {
-        alert("Please select a platform in this row");
-        return {'platform': ''};
-      }
-    },
-    type: 'select',
-    onblur: 'submit',
-    placeholder: '',
-    style: 'inherit',
-    callback: function (sValue, y) {
-      var aPos = datatable.fnGetPosition(this);
-      datatable.fnUpdate(sValue, aPos[0], aPos[1]);
-
-      var cell = datatable.fnGetPosition(this)[2];
-      var nTr = datatable.fnSettings().aoData[aPos[0]].nTr;
-
-      Fluxion.doAjax(
-        'libraryControllerHelperService',
-        'getBarcodesPositions',
-        {'strategy': sValue,
-          'url': ajaxurl
-        },
-        {'doOnSuccess': function (json) {
-          var randomId = makeid();
-          jQuery(nTr.cells[cell + 1]).html("<div id='" + randomId + "'></div>");
-          for (var i = 0; i < json.numApplicableBarcodes; i++) {
-            jQuery('#' + randomId).append("<span class='tagBarcodeSelectDiv' position='" + (i + 1) + "' id='tagbarcodes" + (i + 1) + "'>- <i>Select...</i></span>");
-            if (json.numApplicableBarcodes > 1 && i == 0) {
-              jQuery('#' + randomId).append("|");
-            }
-          }
-
-          //bind editable to selects
-          jQuery("#cinput .tagBarcodeSelectDiv").editable(function (value, settings) {
-            return value;
-          },
-          {
-            loadurl: '../../library/barcodesForPosition',
-            loaddata: function (value, settings) {
-              var ret = {};
-              ret["position"] = jQuery(this).attr("position");
-              if (!Utils.validation.isNullCheck(sValue)) {
-                ret['barcodeStrategy'] = sValue;
-              }
-              else {
-                ret['barcodeStrategy'] = '';
-              }
-
-              return ret;
-            },
-            type: 'select',
-            onblur: 'submit',
-            placeholder: '',
-            style: 'inherit',
-            submitdata: function (tvalue, tsettings) {
-              return {
-                "row_id": this.parentNode.getAttribute('id'),
-                "column": datatable.fnGetPosition(this)[2]
-              };
-            }
-          });
+    // display selected options
+    if (tagBarcodeStore && tagBarcodeStore[row] && value != -1) {
+        textArea.size = tagBarcodeStore[row].length;
+        for (item of tagBarcodeStore[row]) {
+            var option = document.createElement("option");
+            option.value = item.value;
+            option.text = item.text;
+            textArea.appendChild(option);
         }
+        if (tagBarcodeStore[row].length > 0) {
+            jQuery(textArea).attr('disabled', false);
+            jQuery(editBtn).attr('disabled', false);
+        }
+    }
+    // disabled styles
+
+    editBtn.click(function() {
+        jQuery('#dialog').html('');
+        // create dialog
+        jQuery("#dialog").dialog({
+            dialogClass: "no-close",
+            buttons: [{
+                text: "OK",
+                // close dialog function
+                click: function() {
+
+                    tagBarcodeStore[row] = [];
+                    // get selected values and add to display
+                    for (var i = 0; i < selects.length; i++) {
+                        var option = document.createElement("option");
+                        option.value = jQuery("#selecter" + i).val();
+                        option.text = jQuery("#selecter" + i + " option:selected").text();
+                        tagBarcodeStore[row].push(option);
+                        // textArea.appendChild(option);
+                    }
+                    jQuery(this).dialog("close");
+                    hot.render();
+                }
+            }]
         });
-    },
-    submitdata: function (value, settings) {
-      return {
-        "row_id": this.parentNode.getAttribute('id'),
-        "column": datatable.fnGetPosition(this)[2]
-      };
-    },
-    "width": "100%"
-  });
+        // populate dialog
+        if (value && value != -1) {
+            strategy = value['strategy'];
+            numPositions = value['numPositions'];
+            if (numPositions > 0) {
+                var callCount = 0;
+                for (var pos = 0; pos < numPositions; pos++) {
+                    jQuery.get("../tagBarcodesJson", {
+                            strategy: strategy,
+                            position: pos + 1
+                        },
+                        function(tagData) {
+                            if (tagData && tagData['tagBarcodes'] && tagData['tagBarcodes'].length > 0 && value !== -1) {
+                                // create
+                                var selectList = document.createElement("select");
+                                selectList.id = 'selecter' + callCount;
+                                jQuery(selectList).css('width', '200px');
+                                jQuery('#dialog').append(selectList);
+                                var options = tagData['tagBarcodes'];
+                                for (var j = 0; j < options.length; j++) {
+                                    var option = document.createElement("option");
+                                    option.value = options[j].id;
+                                    option.text = options[j].name + ' | ' + options[j].sequence;
+                                    selectList.appendChild(option);
+                                }
+                                selects.push(selectList);
+                                callCount++;
+                            } else {
+                                jQuery('#dialog').text('Nothing to display.');
+                            }
+                        });
+                }
+            }
+        } else {
+            console.log(value);
+        }
+    });
 
-  jQuery("#cinput .passedCheck").editable(function (value, settings) {
-    return value;
-  },
-  {
-    type: 'checkbox',
-    onblur: 'submit',
-    placeholder: '',
-    style: 'inherit',
-    callback: function (sValue, y) {
-      var aPos = datatable.fnGetPosition(this);
-      datatable.fnUpdate(sValue, aPos[0], aPos[1]);
-    },
-    submitdata: function (value, settings) {
-      return {
-        "row_id": this.parentNode.getAttribute('id'),
-        "column": datatable.fnGetPosition(this)[2]
-      };
-    },
-    "width": "100%"
-  });
-}
+    container.append(textArea);
+    container.append(editBtn);
 
-function makeid() {
-  var text = "";
-  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    jQuery(td).empty().append(container);
 
-  for (var i = 0; i < 5; i++)
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-
-  return text;
-}
-
-function submitBulkLibraries() {
-  jQuery('#bulkLibSaveButton').attr('disabled', 'disabled');
-  jQuery('#bulkLibSaveButton').html("Processing...");
-
-  DatatableUtils.collapseInputs('#cinput');
-
-  var table = jQuery('#cinput').dataTable();
-  var nodes = DatatableUtils.fnGetSelected(table);
-  var ok = true;
-  var arr = [];
-  for (var i = 0; i < nodes.length; i++) {
-    var obj = {};
-    for (var j = 1; j < (nodes[i].cells.length); j++) {
-      obj[headers[j]] = jQuery(nodes[i].cells[j]).text();
-    }
-
-    if (Utils.validation.isNullCheck(obj["description"]) ||
-        Utils.validation.isNullCheck(obj["platform"]) ||
-        Utils.validation.isNullCheck(obj["libraryType"]) ||
-        Utils.validation.isNullCheck(obj["selectionType"]) ||
-        Utils.validation.isNullCheck(obj["strategyType"])) {
-      ok = false;
-      jQuery(nodes[i]).css('background', '#EE9966');
-    }
-    else {
-      jQuery(nodes[i]).css('background', '#CCFF99');
-      arr.push(JSON.stringify(obj));
-    }
-  }
-
-  if (ok) {
-    Fluxion.doAjax(
-      'libraryControllerHelperService',
-      'bulkSaveLibraries',
-      {'projectId':${library.sample.project.id},
-        'libraries': "[" + arr.join(',') + "]",
-        'url': ajaxurl
-      },
-      {'doOnSuccess': function (json) {
-        window.location.href = '<c:url value='/miso/project/${library.sample.project.id}'/>';
-      }
-      });
-  }
-  else {
-    alert("Red data rows do not have one or more of the following: description, platform, library type, selection type or strategy type!");
-  }
-  jQuery('#bulkLibSaveButton').removeAttr('disabled');
-  jQuery('#bulkLibSaveButton').html("Save");
 }
 </script>
 </c:if>
+<div id="dialog" title="Tag Barcodes" style="display: none;"></div>
 </div>
 </div>
 
-<script type="text/javascript">
-  jQuery(document).ready(function () {
-    jQuery('#alias').simplyCountable({
-      counter: '#aliasCounter',
-      countType: 'characters',
-      maxCount: ${maxLengths['alias']},
-      countDirection: 'down'
-    });
+<%@ include file="adminsub.jsp"%>
 
-    jQuery('#description').simplyCountable({
-      counter: '#descriptionCounter',
-      countType: 'characters',
-      maxCount: ${maxLengths['description']},
-      countDirection: 'down'
-    });
-  });
-</script>
-
-<%@ include file="adminsub.jsp" %>
-
-<%@ include file="../footer.jsp" %>
+<%@ include file="../footer.jsp"%>
