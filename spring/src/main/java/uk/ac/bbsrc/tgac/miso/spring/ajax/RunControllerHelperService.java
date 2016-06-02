@@ -606,7 +606,7 @@ public class RunControllerHelperService {
     b.append("<select name='platform' id='platform' onchange='setContainerCount(this);'>");
     for (Platform p : platforms) {
       if (p.getPlatformType().equals(run.getPlatformType())) {
-        b.append("<option value='" + p.getPlatformId() + "' platform='" + p.getPlatformType().getKey() + "'");
+        b.append("<option value='" + p.getId() + "' platform='" + p.getPlatformType().getKey() + "'");
         b.append(">" + p.getPlatformType().getKey() + " - " + p.getInstrumentModel() + "</option>");
       }
     }
@@ -825,7 +825,7 @@ public class RunControllerHelperService {
                 sb.append("<div id='p_div_" + (p.getPartitionNumber() - 1) + "' class='elementListDroppableDiv'>");
                 sb.append("<ul class='runPartitionDroppable' bind='sequencerPartitionContainers[" + containerNum + "].partitions["
                     + (p.getPartitionNumber() - 1) + "].pool' partition='" + (p.getPartitionNumber() - 1)
-                    + "' ondblclick='Run.container.populatePartition(this);'></ul>");
+                    + "' ondblclick='Run.container.populatePartition(this, " + containerNum + ", " + (p.getPartitionNumber() - 1) + ");'></ul>");
                 sb.append("</div>");
               }
               sb.append("</td>");
@@ -966,28 +966,17 @@ public class RunControllerHelperService {
     RunImpl r = (RunImpl) session.getAttribute("run_" + json.getString("run_cId"));
 
     try {
-      Pool<? extends Poolable> p = null;
+      PlatformType pt = json.has("platform") && !isStringEmptyOrNull(json.getString("platform"))
+          ? PlatformType.get(json.getString("platform")) : r.getPlatformType();
 
-      if (!isStringEmptyOrNull(barcode)) {
-        if (LimsUtils.isBase64String(barcode)) {
-          // Base64-encoded string, most likely a barcode image beeped in. decode and search
-          barcode = new String(Base64.decodeBase64(barcode));
-        }
+      Pool<? extends Poolable> p = requestManager.getPoolByBarcode(barcode, pt);
+      // Base64-encoded string, most likely a barcode image beeped in. decode and search
+      if (p == null) {
+        p = requestManager.getPoolByBarcode(new String(Base64.decodeBase64(barcode)), pt);
       }
-
-      if (json.has("platform") && !isStringEmptyOrNull(json.getString("platform"))) {
-        PlatformType pt = PlatformType.get(json.getString("platform"));
-        if (pt != null) {
-          p = requestManager.getPoolByBarcode(barcode, pt);
-        } else {
-          p = requestManager.getPoolByBarcode(barcode);
-        }
-      } else {
-        if (r.getPlatformType() != null) {
-          p = requestManager.getPoolByBarcode(barcode, r.getPlatformType());
-        } else {
-          p = requestManager.getPoolByBarcode(barcode);
-        }
+      // if pool still can't be found, return error
+      if (p == null) {
+        return JSONUtils.SimpleJSONError("Cannot find a pool with barcode " + barcode);
       }
       List<SequencerPartitionContainer> fs = new ArrayList<SequencerPartitionContainer>(r.getSequencerPartitionContainers());
       if (!fs.isEmpty()) {
@@ -1190,16 +1179,17 @@ public class RunControllerHelperService {
       JSONObject j = new JSONObject();
       JSONArray jsonArray = new JSONArray();
       for (Run run : requestManager.listAllRuns()) {
-        jsonArray.add("['" + run.getName() + "','" + run.getAlias() + "','"
-            + (run.getStatus() != null && run.getStatus().getHealth() != null ? run.getStatus().getHealth().getKey() : "") + "','"
-            + (run.getStatus() != null && run.getStatus().getStartDate() != null ? LimsUtils.getDateAsString(run.getStatus().getStartDate())
-                : "")
-            + "','"
-            + (run.getStatus() != null && run.getStatus().getCompletionDate() != null
-                ? LimsUtils.getDateAsString(run.getStatus().getCompletionDate()) : "")
-            + "','" + (run.getPlatformType() != null ? run.getPlatformType().getKey() : "") + "','" + "<a href=\"/miso/run/" + run.getId()
-            + "\"><span class=\"ui-icon ui-icon-pencil\"></span></a>" + "']");
+        JSONArray inner = new JSONArray();
+        inner.add(TableHelper.hyperLinkify("/miso/run/" + run.getId(), run.getName()));
+        inner.add(TableHelper.hyperLinkify("/miso/run/" + run.getId(), run.getAlias()));
+        inner.add((run.getStatus() != null && run.getStatus().getHealth() != null ? run.getStatus().getHealth().getKey() : ""));
+        inner.add((run.getStatus() != null && run.getStatus().getStartDate() != null
+            ? LimsUtils.getDateAsString(run.getStatus().getStartDate()) : ""));
+        inner.add((run.getStatus() != null && run.getStatus().getCompletionDate() != null
+            ? LimsUtils.getDateAsString(run.getStatus().getCompletionDate()) : ""));
+        inner.add((run.getPlatformType() != null ? run.getPlatformType().getKey() : ""));
 
+        jsonArray.add(inner);
       }
       j.put("runsArray", jsonArray);
       return j;

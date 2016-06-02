@@ -25,17 +25,22 @@ package uk.ac.bbsrc.tgac.miso.core.data;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Set;
+import java.util.List;
 import java.util.TreeSet;
 
+import javax.persistence.Column;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.MappedSuperclass;
+import javax.persistence.OneToOne;
+import javax.persistence.Transient;
 
+import org.codehaus.jackson.annotate.JsonBackReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +48,9 @@ import com.eaglegenomics.simlims.core.Note;
 import com.eaglegenomics.simlims.core.SecurityProfile;
 import com.eaglegenomics.simlims.core.User;
 
+import uk.ac.bbsrc.tgac.miso.core.data.impl.LibraryAdditionalInfoImpl;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.LibraryDilution;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.UserImpl;
 import uk.ac.bbsrc.tgac.miso.core.data.type.LibrarySelectionType;
 import uk.ac.bbsrc.tgac.miso.core.data.type.LibraryStrategyType;
 import uk.ac.bbsrc.tgac.miso.core.data.type.LibraryType;
@@ -59,7 +66,9 @@ import uk.ac.bbsrc.tgac.miso.core.util.CoverageIgnore;
  * @author Rob Davey
  * @since 0.0.2
  */
+@MappedSuperclass
 public abstract class AbstractLibrary extends AbstractBoxable implements Library {
+
   protected static final Logger log = LoggerFactory.getLogger(AbstractLibrary.class);
   public static final Long UNSAVED_ID = 0L;
   public static final String UNITS = "nM";
@@ -74,47 +83,63 @@ public abstract class AbstractLibrary extends AbstractBoxable implements Library
   private Date creationDate = new Date();
   private String identificationBarcode;
   private String locationBarcode;
+  private String platformName;
+  private String alias;
+  private Boolean qcPassed;
+  private boolean lowQuality;
+
+  @Transient
   private TagBarcode tagBarcode;
 
-  private HashMap<Integer, TagBarcode> tagBarcodes = new HashMap<Integer, TagBarcode>();
+  @Transient
+  private List<TagBarcode> tagBarcodes = new ArrayList<>();
 
   private Boolean paired;
 
+  @Transient
   private final Collection<LibraryQC> libraryQCs = new TreeSet<LibraryQC>();
+
+  @Transient
   private final Collection<LibraryDilution> libraryDilutions = new HashSet<LibraryDilution>();
-  private Set<Plate<? extends LinkedList<Library>, Library>> plates = new HashSet<Plate<? extends LinkedList<Library>, Library>>();
 
+  @Transient
   private SecurityProfile securityProfile;
-  private Sample sample;
-  private LibraryType libraryType;
-  private LibrarySelectionType librarySelectionType;
-  private LibraryStrategyType libraryStrategyType;
-  private String platformName;
-  private Double initialConcentration;
-  private Integer libraryQuant;
-  private String alias;
-  private Boolean qcPassed;
-  private User lastModifier;
-  private boolean lowQuality;
 
+  @Transient
+  @JsonBackReference
+  private Sample sample;
+
+  @Transient
+  private LibraryType libraryType;
+
+  @Transient
+  private LibrarySelectionType librarySelectionType;
+
+  @Transient
+  private LibraryStrategyType libraryStrategyType;
+
+  @Column(name = "concentration")
+  private Double initialConcentration;
+
+  @Transient
+  private Integer libraryQuant;
+
+  @OneToOne(targetEntity = UserImpl.class)
+  @JoinColumn(name = "lastModifier", nullable = false)
+  private User lastModifier;
+
+  @Transient
   private Collection<Note> notes = new HashSet<Note>();
+
+  @Transient
   private final Collection<ChangeLog> changeLog = new ArrayList<ChangeLog>();
 
+  @Transient
   private Date lastUpdated;
 
-  @Override
-  @CoverageIgnore
-  @Deprecated
-  public Long getLibraryId() {
-    return libraryId;
-  }
-
-  @Override
-  @CoverageIgnore
-  @Deprecated
-  public void setLibraryId(Long libraryId) {
-    this.libraryId = libraryId;
-  }
+  @OneToOne(targetEntity = LibraryAdditionalInfoImpl.class, mappedBy = "library")
+  // TODO: add cascade
+  private LibraryAdditionalInfo libraryAdditionalInfo;
 
   @Override
   public long getId() {
@@ -156,6 +181,7 @@ public abstract class AbstractLibrary extends AbstractBoxable implements Library
     this.accession = accession;
   }
 
+  @Override
   public Date getCreationDate() {
     return creationDate;
   }
@@ -191,27 +217,26 @@ public abstract class AbstractLibrary extends AbstractBoxable implements Library
     return getAlias();
   }
 
-  @CoverageIgnore
   @Override
-  @Deprecated
-  public TagBarcode getTagBarcode() {
-    return tagBarcode;
-  }
-
-  @CoverageIgnore
-  @Override
-  @Deprecated
-  public void setTagBarcode(TagBarcode tagBarcode) {
-    this.tagBarcode = tagBarcode;
-  }
-
-  @Override
-  public HashMap<Integer, TagBarcode> getTagBarcodes() {
+  public List<TagBarcode> getTagBarcodes() {
     return tagBarcodes;
   }
 
   @Override
-  public void setTagBarcodes(HashMap<Integer, TagBarcode> tagBarcodes) {
+  public void setTagBarcodes(List<TagBarcode> tagBarcodes) {
+    TagBarcode.sort(tagBarcodes);
+    TagBarcodeFamily current = null;
+    for (TagBarcode barcode : tagBarcodes) {
+      if (barcode == null) continue;
+      if (current == null) {
+        current = barcode.getFamily();
+      } else {
+        if (current.getId() != barcode.getFamily().getId()) {
+          throw new IllegalArgumentException(String.format("Barcodes not all from the same family. (%d:%s vs %d:%s)", current.getId(),
+              current.getName(), barcode.getFamily().getId(), barcode.getFamily().getName()));
+        }
+      }
+    }
     this.tagBarcodes = tagBarcodes;
   }
 
@@ -343,20 +368,6 @@ public abstract class AbstractLibrary extends AbstractBoxable implements Library
   }
 
   @Override
-  public Set<Plate<? extends LinkedList<Library>, Library>> getPlates() {
-    return plates;
-  }
-
-  @CoverageIgnore
-  public void addPlate(Plate<? extends LinkedList<Library>, Library> plate) {
-    this.plates.add(plate);
-  }
-
-  public void setPlates(Set<Plate<? extends LinkedList<Library>, Library>> plates) {
-    this.plates = plates;
-  }
-
-  @Override
   public Date getLastUpdated() {
     return lastUpdated;
   }
@@ -374,6 +385,16 @@ public abstract class AbstractLibrary extends AbstractBoxable implements Library
   @Override
   public boolean isLowQuality() {
     return lowQuality;
+  }
+
+  @Override
+  public LibraryAdditionalInfo getLibraryAdditionalInfo() {
+    return libraryAdditionalInfo;
+  }
+
+  @Override
+  public void setLibraryAdditionalInfo(LibraryAdditionalInfo libraryAdditionalInfo) {
+    this.libraryAdditionalInfo = libraryAdditionalInfo;
   }
 
   @CoverageIgnore
@@ -473,14 +494,15 @@ public abstract class AbstractLibrary extends AbstractBoxable implements Library
     sb.append(getAlias());
     sb.append(" : ");
     sb.append(getDescription());
-    sb.append(" : ");
     return sb.toString();
   }
 
+  @Override
   public User getLastModifier() {
     return lastModifier;
   }
 
+  @Override
   public void setLastModifier(User lastModifier) {
     this.lastModifier = lastModifier;
   }
@@ -488,5 +510,14 @@ public abstract class AbstractLibrary extends AbstractBoxable implements Library
   @Override
   public Collection<ChangeLog> getChangeLog() {
     return changeLog;
+  }
+
+  @Override
+  public TagBarcodeFamily getCurrentFamily() {
+    if (tagBarcodes == null || tagBarcodes.isEmpty()) {
+      return TagBarcodeFamily.NULL;
+    } else {
+      return tagBarcodes.get(0).getFamily();
+    }
   }
 }

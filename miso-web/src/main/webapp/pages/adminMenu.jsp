@@ -41,7 +41,9 @@
       <div class="portlet">
         <div class="portlet-header">Cache Administration</div>
         <div class="portlet-content">
+        <c:if test="${autoGenerateIdBarcodes}">
           <a href="javascript:void(0);" onclick="flushAllCaches();">Flush All Caches</a><br/>
+        </c:if>
           <a href="javascript:void(0);" onclick="regenAllBarcodes();">Regenerate All Barcodes</a>
           <a href="javascript:void(0);" onclick="reindexAlertManagers();">Reindex Alert Managers</a><br/>
         </div>
@@ -78,58 +80,6 @@
 
   </div>
 </div>
-
-<style type="text/css">
-  .column {
-    width: 50%;
-    float: left;
-    padding-bottom: 100px;
-    margin-top: 4px;
-  }
-
-  .portlet {
-    margin: 0 1em 1em 0;
-  }
-
-  .portlet-header {
-    margin: 0.3em;
-    padding-bottom: 4px;
-    padding-left: 0.2em;
-  }
-
-  .portlet-header .ui-icon {
-    float: right;
-  }
-
-  .portlet-content {
-    padding: 0.4em;
-  }
-
-  .ui-sortable-placeholder {
-    border: 1px dotted black;
-    visibility: visible !important;
-    height: 50px !important;
-  }
-
-  .ui-sortable-placeholder * {
-    visibility: hidden;
-  }
-
-  .ui-widget-header {
-    -moz-background-clip: border;
-    -moz-background-inline-policy: continuous;
-    -moz-background-origin: padding;
-    background: #F0F0FF none repeat scroll 0 0;
-    border: 1px solid #AAAAAA;
-    color: #666666;
-    font-weight: bold;
-  }
-
-  .ui-widget {
-    font-family: Verdana, Arial, sans-serif;
-    font-size: 1em;
-  }
-</style>
 
 <script type="text/javascript">
 

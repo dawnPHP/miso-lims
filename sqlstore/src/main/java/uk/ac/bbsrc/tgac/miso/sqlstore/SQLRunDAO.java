@@ -31,9 +31,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 
 import javax.persistence.CascadeType;
+
+import net.sf.ehcache.Cache;
+import net.sf.ehcache.CacheManager;
+import net.sf.ehcache.Element;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,9 +61,6 @@ import com.googlecode.ehcache.annotations.KeyGenerator;
 import com.googlecode.ehcache.annotations.Property;
 import com.googlecode.ehcache.annotations.TriggersRemove;
 
-import net.sf.ehcache.Cache;
-import net.sf.ehcache.CacheManager;
-import net.sf.ehcache.Element;
 import uk.ac.bbsrc.tgac.miso.core.data.AbstractRun;
 import uk.ac.bbsrc.tgac.miso.core.data.Run;
 import uk.ac.bbsrc.tgac.miso.core.data.RunQC;
@@ -94,7 +96,7 @@ import uk.ac.bbsrc.tgac.miso.sqlstore.util.DbUtils;
 public class SQLRunDAO implements RunStore {
   private static final String TABLE_NAME = "Run";
 
-  public static final String RUNS_SELECT = "SELECT runId, name, alias, description, accession, platformRunId, pairedEnd, cycles, filePath, securityProfile_profileId, platformType, status_statusId, sequencerReference_sequencerReferenceId, lastModifier "
+  public static final String RUNS_SELECT = "SELECT runId, name, alias, description, accession, platformRunId, pairedEnd, cycles, filePath, securityProfile_profileId, platformType, status_statusId, sequencerReference_sequencerReferenceId, lastModifier, sequencingParameters_parametersId "
       + "FROM " + TABLE_NAME;
 
   public static final String RUNS_SELECT_LIMIT = RUNS_SELECT + " ORDER BY runId DESC LIMIT ?";
@@ -103,13 +105,15 @@ public class SQLRunDAO implements RunStore {
 
   public static final String RUN_SELECT_BY_ALIAS = RUNS_SELECT + " WHERE alias = ?";
 
+  public static final String RUN_SELECT_BY_SEQUENCER_ID = RUNS_SELECT + " WHERE sequencerReference_sequencerReferenceId = ?";
+
   public static final String RUNS_SELECT_BY_SEARCH = RUNS_SELECT + " WHERE name LIKE ? OR alias LIKE ? OR description LIKE ? ";
 
   public static final String RUN_UPDATE = "UPDATE " + TABLE_NAME + " "
       + "SET name=:name, alias=:alias, description=:description, accession=:accession, platformRunId=:platformRunId, "
       + "pairedEnd=:pairedEnd, cycles=:cycles, filePath=:filePath, securityProfile_profileId=:securityProfile_profileId, "
-      + "platformType=:platformType, status_statusId=:status_statusId, sequencerReference_sequencerReferenceId=:sequencerReference_sequencerReferenceId "
-      + "WHERE runId=:runId";
+      + "platformType=:platformType, status_statusId=:status_statusId, sequencerReference_sequencerReferenceId=:sequencerReference_sequencerReferenceId, "
+      + "sequencingParameters_parametersId = :sequencingParameters_parametersId " + "WHERE runId=:runId";
 
   public static final String RUN_DELETE = "DELETE FROM " + TABLE_NAME + " WHERE runId=:runId";
 
@@ -254,6 +258,8 @@ public class SQLRunDAO implements RunStore {
   }
 
   private void purgeCaches(Collection<Run> runs) {
+    if (cacheManager == null) return;
+    
     for (Run run : runs) {
       purgeListCache(run, true);
       DbUtils.updateCaches(cacheManager, run, Run.class);
@@ -261,6 +267,8 @@ public class SQLRunDAO implements RunStore {
   }
 
   private void purgeListCache(Run run, boolean replace) {
+    if (cacheManager == null) return;
+    
     Cache cache = cacheManager.getCache("runListCache");
     DbUtils.updateListCache(cache, replace, run, Run.class);
   }
@@ -283,7 +291,7 @@ public class SQLRunDAO implements RunStore {
     Long statusId = null;
     if (run.getStatus() != null) {
       Status s = run.getStatus();
-      statusId = s.getStatusId();
+      statusId = s.getId();
       // if no status has ever been saved to the database for this run
       // we want to create one, cascading or not
       if (statusId == null || (this.cascadeType != null && this.cascadeType.equals(CascadeType.PERSIST))) {
@@ -314,6 +322,7 @@ public class SQLRunDAO implements RunStore {
     params.addValue("status_statusId", statusId);
     params.addValue("sequencerReference_sequencerReferenceId", run.getSequencerReference().getId());
     params.addValue("lastModifier", run.getLastModifier().getUserId());
+    params.addValue("sequencingParameters_parametersId", run.getSequencingParametersId());
 
     if (run.getId() == AbstractRun.UNSAVED_ID) {
       SimpleJdbcInsert insert = new SimpleJdbcInsert(template).withTableName(TABLE_NAME).usingGeneratedKeyColumns("runId");
@@ -411,7 +420,7 @@ public class SQLRunDAO implements RunStore {
       Long statusId = null;
       if (run.getStatus() != null) {
         Status s = run.getStatus();
-        statusId = s.getStatusId();
+        statusId = s.getId();
         // if no status has ever been saved to the database for this run
         // we want to create one, cascading or not
         if (statusId == StatusImpl.UNSAVED_ID || (this.cascadeType != null && this.cascadeType.equals(CascadeType.PERSIST))) {
@@ -443,7 +452,10 @@ public class SQLRunDAO implements RunStore {
         params.addValue("status_statusId", statusId);
         params.addValue("sequencerReference_sequencerReferenceId", run.getSequencerReference().getId());
         params.addValue("lastModifier", run.getLastModifier().getUserId());
-
+        if (run.getSequencingParametersId() != null) {
+          params.addValue("sequencingParameters_parametersId", run.getSequencingParametersId());
+        }
+        
         if (run.getId() == AbstractRun.UNSAVED_ID) {
           SimpleJdbcInsert insert = new SimpleJdbcInsert(template).withTableName(TABLE_NAME).usingGeneratedKeyColumns("runId");
           try {
@@ -573,6 +585,11 @@ public class SQLRunDAO implements RunStore {
   }
 
   @Override
+  public List<Run> listBySequencerId(long sequencerReferenceId) throws IOException {
+    return template.query(RUN_SELECT_BY_SEQUENCER_ID, new Object[] { sequencerReferenceId }, new RunMapper(true));
+  }
+
+  @Override
   @Deprecated
   public List<Run> listByExperimentId(long experimentId) throws IOException {
     return Collections.emptyList();
@@ -689,12 +706,15 @@ public class SQLRunDAO implements RunStore {
       r.setCycles(rs.getInt("cycles"));
       r.setFilePath(rs.getString("filePath"));
       r.setPlatformType(PlatformType.get(rs.getString("platformType")));
+      r.setSequencingParametersId(rs.getLong("sequencingParameters_parametersId"));
+      if (rs.wasNull()) {
+        r.setSequencingParametersId(null);
+      }
 
       try {
         r.setLastModifier(securityDAO.getUserById(rs.getLong("lastModifier")));
         r.setSecurityProfile(securityProfileDAO.get(rs.getLong("securityProfile_profileId")));
         r.setStatus(statusDAO.get(rs.getLong("status_statusId")));
-        r.setSequencerReference(sequencerReferenceDAO.get(rs.getLong("sequencerReference_sequencerReferenceId")));
         r.setWatchers(new HashSet<User>(watcherDAO.getWatchersByEntityName(r.getWatchableIdentifier())));
         if (r.getSecurityProfile() != null && r.getSecurityProfile().getOwner() != null) r.addWatcher(r.getSecurityProfile().getOwner());
         for (User u : watcherDAO.getWatchersByWatcherGroup("RunWatchers")) {
@@ -702,6 +722,8 @@ public class SQLRunDAO implements RunStore {
         }
 
         if (!isLazy()) {
+          r.setSequencerReference(sequencerReferenceDAO.get(rs.getLong("sequencerReference_sequencerReferenceId")));
+
           List<SequencerPartitionContainer<SequencerPoolPartition>> ss = sequencerPartitionContainerDAO
               .listAllSequencerPartitionContainersByRunId(id);
           r.setSequencerPartitionContainers(ss);
@@ -730,5 +752,10 @@ public class SQLRunDAO implements RunStore {
 
       return r;
     }
+  }
+
+  @Override
+  public Map<String, Integer> getRunColumnSizes() throws IOException {
+    return DbUtils.getColumnSizes(template, TABLE_NAME);
   }
 }

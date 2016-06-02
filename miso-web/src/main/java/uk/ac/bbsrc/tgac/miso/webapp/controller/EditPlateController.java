@@ -24,9 +24,7 @@
 package uk.ac.bbsrc.tgac.miso.webapp.controller;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +32,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
@@ -51,13 +49,9 @@ import uk.ac.bbsrc.tgac.miso.core.data.AbstractPlate;
 import uk.ac.bbsrc.tgac.miso.core.data.ChangeLog;
 import uk.ac.bbsrc.tgac.miso.core.data.Plate;
 import uk.ac.bbsrc.tgac.miso.core.data.Plateable;
-import uk.ac.bbsrc.tgac.miso.core.data.TagBarcode;
 import uk.ac.bbsrc.tgac.miso.core.factory.DataObjectFactory;
 import uk.ac.bbsrc.tgac.miso.core.manager.RequestManager;
 import uk.ac.bbsrc.tgac.miso.core.util.LimsUtils;
-import uk.ac.bbsrc.tgac.miso.sqlstore.util.DbUtils;
-import uk.ac.bbsrc.tgac.miso.webapp.context.ApplicationContextProvider;
-import uk.ac.bbsrc.tgac.miso.webapp.util.MisoPropertyExporter;
 
 import com.eaglegenomics.simlims.core.User;
 import com.eaglegenomics.simlims.core.manager.SecurityManager;
@@ -77,13 +71,6 @@ public class EditPlateController {
   @Autowired
   private DataObjectFactory dataObjectFactory;
 
-  @Autowired
-  private JdbcTemplate interfaceTemplate;
-
-  public void setInterfaceTemplate(JdbcTemplate interfaceTemplate) {
-    this.interfaceTemplate = interfaceTemplate;
-  }
-
   public void setDataObjectFactory(DataObjectFactory dataObjectFactory) {
     this.dataObjectFactory = dataObjectFactory;
   }
@@ -100,41 +87,18 @@ public class EditPlateController {
   public Collection<String> populateMaterialTypes() throws IOException {
     return requestManager.listAllStudyTypes();
   }
-  
+
   @ModelAttribute("maxLengths")
   public Map<String, Integer> maxLengths() throws IOException {
-    return DbUtils.getColumnSizes(interfaceTemplate, "Plate");
+    return requestManager.getPlateColumnSizes();
   }
-  
-  public Boolean misoPropertyBoolean(String property) {
-    MisoPropertyExporter exporter = (MisoPropertyExporter) ApplicationContextProvider.getApplicationContext().getBean("propertyConfigurer");
-    Map<String, String> misoProperties = exporter.getResolvedProperties();
-    return misoProperties.containsKey(property)
-        && Boolean.parseBoolean(misoProperties.get(property));
-  }
+
+  @Value("${miso.autoGenerateIdentificationBarcodes}")
+  private Boolean autoGenerateIdBarcodes;
 
   @ModelAttribute("autoGenerateIdBarcodes")
   public Boolean autoGenerateIdentificationBarcodes() {
-    MisoPropertyExporter exporter = (MisoPropertyExporter) ApplicationContextProvider.getApplicationContext().getBean("propertyConfigurer");
-    Map<String, String> misoProperties = exporter.getResolvedProperties();
-    return misoProperties.containsKey("miso.autoGenerateIdentificationBarcodes")
-        && Boolean.parseBoolean(misoProperties.get("miso.autoGenerateIdentificationBarcodes"));
-  }
-
-  public Collection<TagBarcode> populateAvailableTagBarcodes() throws IOException {
-    List<TagBarcode> barcodes = new ArrayList<TagBarcode>(requestManager.listAllTagBarcodes());
-    Collections.sort(barcodes);
-    return barcodes;
-  }
-
-  public String tagBarcodesString(String platformName) throws IOException {
-    List<TagBarcode> tagBarcodes = new ArrayList<TagBarcode>(requestManager.listAllTagBarcodes());
-    Collections.sort(tagBarcodes);
-    List<String> names = new ArrayList<String>();
-    for (TagBarcode tb : tagBarcodes) {
-      names.add("\"" + tb.getName() + " (" + tb.getSequence() + ")\"" + ":" + "\"" + tb.getId() + "\"");
-    }
-    return LimsUtils.join(names, ",");
+    return autoGenerateIdBarcodes;
   }
 
   @RequestMapping(value = "/new", method = RequestMethod.GET)
@@ -175,14 +139,6 @@ public class EditPlateController {
       } else {
         throw new SecurityException("No such Plate");
       }
-
-      model.put("availableTagBarcodes", populateAvailableTagBarcodes());
-
-      /*
-       * model.put("owners", LimsSecurityUtils.getPotentialOwners(user, study, securityManager.listAllUsers()));
-       * model.put("accessibleUsers", LimsSecurityUtils.getAccessibleUsers(user, study, securityManager.listAllUsers()));
-       * model.put("accessibleGroups", LimsSecurityUtils.getAccessibleGroups(user, study, securityManager.listAllGroups()));
-       */
       return new ModelAndView("/pages/editPlate.jsp", model);
     } catch (IOException ex) {
       if (log.isDebugEnabled()) {
@@ -200,7 +156,6 @@ public class EditPlateController {
       model.put("title", "Import Plate");
       model.put("formObj", plate);
       model.put("plate", plate);
-      model.put("availableTagBarcodes", populateAvailableTagBarcodes());
       return new ModelAndView("/pages/importPlate.jsp", model);
     } catch (IOException ex) {
       if (log.isDebugEnabled()) {

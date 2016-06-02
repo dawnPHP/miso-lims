@@ -22,8 +22,8 @@
   --%>
 
 <%@ include file="../header.jsp" %>
-<script src="<c:url value='/scripts/datatables_utils.js?ts=${timestamp.time}'/>" type="text/javascript"></script>
-<script src="<c:url value='/scripts/natural_sort.js?ts=${timestamp.time}'/>" type="text/javascript"></script>
+<script src="<c:url value='/scripts/datatables_utils.js'/>" type="text/javascript"></script>
+<script src="<c:url value='/scripts/natural_sort.js'/>" type="text/javascript"></script>
 <script src="<c:url value='/scripts/jquery/datatables/js/jquery.dataTables.min.js'/>" type="text/javascript"></script>
 <script src="<c:url value='/scripts/jquery/editable/jquery.jeditable.mini.js'/>" type="text/javascript"></script>
 <script src="<c:url value='/scripts/jquery/editable/jquery.jeditable.datepicker.js'/>" type="text/javascript"></script>
@@ -37,6 +37,8 @@
 
 <script type="text/javascript" src="<c:url value='/scripts/parsley/parsley.min.js'/>"></script>
 
+<div id="maincontent">
+<div id="contentcolumn">
 <form:form id="project-form" data-parsley-validate="" action="/miso/project" method="POST" commandName="project" autocomplete="off">
 <sessionConversation:insertSessionConversationId attributeName="project"/>
 <h1><c:choose><c:when
@@ -112,7 +114,7 @@
     </td>
   </tr>
   <tr>
-    <td class="h">Description:*</td>
+    <td class="h">Description:</td>
     <td><form:input id="description" path="description" maxlength="${maxLengths['description']}" class="validateable"/>
       <span id="descriptioncounter" class="counter"></span></td>
   </tr>
@@ -133,11 +135,19 @@
     </td>
   </tr>
   <tr>
-    <td></td>
+      <td></td>
+      <td>
+        <div class="parsley-errors-list filled" id="progressSelectError">
+          <div class="parsley-required"></div>
+        </div>
+      </td>
+  </tr>
+  <tr>
+    <td>Reference Genome :*</td>
     <td>
-      <div class="parsley-errors-list filled" id="progressSelectError">
-        <div class="parsley-required"></div>
-      </div>
+        <form:select id="referenceGenome" path="referenceGenomeId">
+            <form:options items="${referenceGenome}" itemValue="id" itemLabel="alias"/>
+        </form:select>
     </td>
   </tr>
 </table>
@@ -160,12 +170,12 @@
 <c:when test="${not empty project.overviews}">
 
 <c:forEach items="${project.overviews}" var="overview" varStatus="ov">
-<div id="overviewdiv${overview.overviewId}" class="ui-corner-all simplebox">
+<div id="overviewdiv${overview.id}" class="ui-corner-all simplebox">
 
 <script type="text/javascript">
   jQuery(document).ready(function () {
     //show watchers list
-    Project.alert.listWatchOverview(${overview.overviewId});
+    Project.alert.listWatchOverview(${overview.id});
   });
 </script>
 
@@ -173,18 +183,18 @@
   <div class="breadcrumbsbubbleInfo">
     <div class="trigger"><c:choose>
       <c:when test="${not empty overviewMap[overview.overviewId]}">
-        <a href='javascript:void(0);' onclick="Project.alert.unwatchOverview(${overview.overviewId});">Stop
+        <a href='javascript:void(0);' onclick="Project.alert.unwatchOverview(${overview.id});">Stop
           watching</a>
       </c:when>
       <c:otherwise>
-        <a href='javascript:void(0);' onclick="Project.alert.watchOverview(${overview.overviewId});">Watch</a>
+        <a href='javascript:void(0);' onclick="Project.alert.watchOverview(${overview.id});">Watch</a>
       </c:otherwise>
     </c:choose>
       |
       (Watchers)
     </div>
     <div class="breadcrumbspopup">
-      <div id="watchersList${overview.overviewId}"></div>
+      <div id="watchersList${overview.id}"></div>
     </div>
   </div>
 </div>
@@ -210,14 +220,14 @@
       <c:choose>
         <c:when test="${overview.locked}">
           <td style="text-align:center;">
-            <a href="javascript:void(0);" onclick="Project.overview.unlockProjectOverview(${overview.overviewId})">
+            <a href="javascript:void(0);" onclick="Project.overview.unlockProjectOverview(${overview.id})">
               <img style="border:0;" alt="Unlock" title="Unlock this overview" src="<c:url value='/styles/images/lock_closed.png'/>"/>
             </a>
           </td>
         </c:when>
         <c:otherwise>
           <td style="text-align:center;">
-            <a href="javascript:void(0);" onclick="Project.overview.lockProjectOverview(${overview.overviewId})">
+            <a href="javascript:void(0);" onclick="Project.overview.lockProjectOverview(${overview.id})">
               <img style="border:0;" alt="Lock" title="Lock this overview" src="<c:url value='/styles/images/lock_open.png'/>"/>
             </a>
           </td>
@@ -268,24 +278,27 @@
     </td>
     <td>
         ${fn:length(overview.qcPassedSamples)} / ${overview.numProposedSamples}
-      <div id="progressbar${overview.overviewId}"></div>
+      <div id="progressbar${overview.id}"></div>
       <script type="text/javascript">
-        jQuery("#progressbar${overview.overviewId}").progressbar({ value: ${fn:length(overview.qcPassedSamples) / overview.numProposedSamples * 100} });
+        jQuery("#progressbar${overview.id}").progressbar({ value: ${fn:length(overview.qcPassedSamples) / overview.numProposedSamples * 100} });
       </script>
     </td>
     <td>
       <c:if test="${not overview.locked}">
-        <a onclick="Project.overview.showProjectOverviewNoteDialog(${overview.overviewId});"
+        <a onclick="Project.overview.showProjectOverviewNoteDialog(${overview.id});"
            href="javascript:void(0);" class="add">Add Note</a><br/>
       </c:if>
       <c:forEach items="${overview.notes}" var="note" varStatus="n">
         <div class="exppreview" id="overview-notes-${n.count}">
           <b>${note.creationDate}</b>: ${note.text}
           <span class="float-right" style="font-weight:bold; color:#C0C0C0;">${note.owner.loginName}
-            <c:if test="${(project.securityProfile.owner.loginName eq SPRING_SECURITY_CONTEXT.authentication.principal.username)
+            <c:if test="${(note.owner.loginName eq SPRING_SECURITY_CONTEXT.authentication.principal.username)
                             or fn:contains(SPRING_SECURITY_CONTEXT.authentication.principal.authorities,'ROLE_ADMIN')}">
-            <span style="color:#000000"><a href='#' onclick="Project.overview.deleteProjectOverviewNote('${overview.overviewId}', '${note.noteId}');">
-              <span class="ui-icon ui-icon-trash" style="clear: both; position: relative; float: right; margin-top: -15px;"/></a></span>
+              <span style="color:#000000">
+                <a href='#' onclick="Project.overview.deleteProjectOverviewNote('${overview.id}', '${note.noteId}');">
+                  <span class="ui-icon ui-icon-trash" style="clear: both; position: relative; float: right; margin-top: -15px;"></span>
+                </a>
+              </span>
             </c:if>
           </span>
         </div>
@@ -404,7 +417,7 @@
   <c:if test="${empty overview.sampleGroup}">
     <a class="add" href="javascript:void(0);" onclick="Project.overview.addSampleGroupTable(${project.id}, ${overview.id});">Add Sample Group</a><br/>
   </c:if>
-  <div id="sampleGroupTableDiv${overview.overviewId}"></div>
+  <div id="sampleGroupTableDiv${overview.id}"></div>
 </c:if>
 <span style="clear:both">
   <c:if test="${not empty overview.sampleGroup}">
@@ -426,7 +439,6 @@
       <tr>
         <th>Sample Name</th>
         <th>Sample Alias*</th>
-        <th class="fit">Edit</th>
         <th class="fit">REMOVE</th>
       </tr>
       </thead>
@@ -434,11 +446,8 @@
       <c:forEach items="${overview.sampleGroup.entities}" var="sample">
         <tr sampleId="${sample.id}" onMouseOver="this.className='highlightrow'"
             onMouseOut="this.className='normalrow'">
-          <td><b>${sample.name}</b></td>
-          <td>${sample.alias}</td>
-          <td class="misoicon" onclick="window.location.href='<c:url value="/miso/sample/${sample.id}"/>'">
-            <span class="ui-icon ui-icon-pencil"/>
-          </td>
+          <td><b><a href="<c:url value='/miso/sample/${sample.id}'/>">${sample.name}</a></b></td>
+          <td><a href="<c:url value='/miso/sample/${sample.id}'/>">${sample.alias}</a></td>
           <td class="misoicon" onclick="Sample.removeSampleFromGroup(${sample.id}, ${overview.sampleGroup.id}, Utils.page.pageReload);">
             <span class="ui-icon ui-icon-trash"/>
           </td>
@@ -456,7 +465,6 @@
         "aoColumns": [
           null,
           { "sType": 'natural' },
-          null,
           null
         ],
         "iDisplayLength": 50,
@@ -593,7 +601,6 @@
       <tr>
         <th>Study Name</th>
         <th>Study Alias</th>
-        <th class="fit">Edit</th>
         <sec:authorize access="hasRole('ROLE_ADMIN')">
           <th class="fit">DELETE</th>
         </sec:authorize>
@@ -603,11 +610,9 @@
       <c:forEach items="${project.studies}" var="study">
         <tr studyId="${study.id}" onMouseOver="this.className='highlightrow'"
             onMouseOut="this.className='normalrow'">
-          <td><b>${study.name}</b></td>
-          <td>${study.alias}</td>
-          <td class="misoicon" onclick="window.location.href='<c:url value="/miso/study/${study.id}"/>'">
-            <span class="ui-icon ui-icon-pencil"/>
-          </td>
+          <td><b><a href="<c:url value='/miso/study/${study.id}'/>">${study.name}</a></b></td>
+          <td><a href="<c:url value='/miso/study/${study.id}'/>">${study.alias}</a></td>
+
           <sec:authorize access="hasRole('ROLE_ADMIN')">
             <td class="misoicon" onclick="Study.deleteStudy(${study.id}, Utils.page.pageReload);">
               <span class="ui-icon ui-icon-trash"/>
@@ -625,8 +630,7 @@
           ],
           "aoColumns": [
             null,
-            { "sType": 'natural' },
-            null
+            { "sType": 'natural' }
             <sec:authorize access="hasRole('ROLE_ADMIN')">, null</sec:authorize>
           ],
           "iDisplayLength": 50,
@@ -766,7 +770,6 @@
             <th>Received Date</th>
             <th>QC Passed</th>
             <th>QC Result</th>
-            <th class="fit">Edit</th>
             <sec:authorize access="hasRole('ROLE_ADMIN')">
               <th class="fit">DELETE</th>
             </sec:authorize>
@@ -775,16 +778,13 @@
           <tbody>
           <c:forEach items="${project.samples}" var="sample">
             <tr sampleId="${sample.id}" onMouseOver="this.className='highlightrow'" onMouseOut="this.className='normalrow'">
-              <td><b>${sample.name}</b></td>
-              <td>${sample.alias}</td>
+              <td><b><a href="<c:url value='/miso/sample/${sample.id}'/>">${sample.name}</a></b></td>
+              <td><a href="<c:url value='/miso/sample/${sample.id}'/>">${sample.alias}</a></td>
               <td>${sample.description}</td>
               <td>${sample.sampleType}</td>
               <td>${sample.receivedDate}</td>
               <td>${sample.qcPassed}</td>
               <td>${sample.id}</td>
-              <td class="misoicon" onclick="window.location.href='<c:url value="/miso/sample/${sample.id}"/>'">
-                <span class="ui-icon ui-icon-pencil"/>
-              </td>
               <sec:authorize access="hasRole('ROLE_ADMIN')">
                 <td class="misoicon" onclick="Sample.deleteSample(${sample.id}, Utils.page.pageReload);">
                   <span class="ui-icon ui-icon-trash"/>
@@ -804,7 +804,6 @@
                 null,
                 { "sType": 'natural' },
                 { "sType": 'natural' },
-                null,
                 null,
                 null,
                 null,
@@ -838,7 +837,7 @@
     <div id="samtab-2">
       <c:forEach items="${project.overviews}" var="overview" varStatus="ov">
         <c:if test="${not empty overview.sampleGroup}">
-          <div id="overviewsamdiv${overview.overviewId}" class="ui-corner-all simplebox">
+          <div id="overviewsamdiv${overview.id}" class="ui-corner-all simplebox">
             <h1>Group ${overview.sampleGroup.id} Samples</h1>
             <ul class="sddm">
               <li>
@@ -876,7 +875,6 @@
                   <th>Received Date</th>
                   <th>QC Passed</th>
                   <th>QC Result</th>
-                  <th class="fit">Edit</th>
                   <sec:authorize access="hasRole('ROLE_ADMIN')">
                     <th class="fit">DELETE</th>
                   </sec:authorize>
@@ -885,16 +883,13 @@
                 <tbody>
                 <c:forEach items="${overview.sampleGroup.entities}" var="sample">
                   <tr sampleId="${sample.id}" onMouseOver="this.className='highlightrow'" onMouseOut="this.className='normalrow'">
-                    <td><b>${sample.name}</b></td>
-                    <td>${sample.alias}</td>
+                    <td><b><a href="<c:url value='/miso/sample/${sample.id}'/>">${sample.name}</a></b></td>
+                    <td><a href="<c:url value='/miso/sample/${sample.id}'/>">${sample.alias}</a></td>
                     <td>${sample.description}</td>
                     <td>${sample.sampleType}</td>
                     <td>${sample.receivedDate}</td>
                     <td>${sample.qcPassed}</td>
                     <td>${sample.id}</td>
-                    <td class="misoicon" onclick="window.location.href='<c:url value="/miso/sample/${sample.id}"/>'">
-                      <span class="ui-icon ui-icon-pencil"/>
-                    </td>
                     <sec:authorize access="hasRole('ROLE_ADMIN')">
                       <td class="misoicon" onclick="Sample.deleteSample(${sample.id}, Utils.page.pageReload);">
                         <span class="ui-icon ui-icon-trash"/>
@@ -914,7 +909,6 @@
                       null,
                       { "sType": 'natural' },
                       { "sType": 'natural' },
-                      null,
                       null,
                       null,
                       null,
@@ -986,7 +980,7 @@
 
             <c:if test="${not empty projectLibraries}">
               <a href="javascript:void(0);" onclick="bulkLibraryQcTable('#library_table');" class="add">QC these Libraries</a>
-              <a href="javascript:void(0);" onclick="bulkLibraryDilutionTable('#library_table');" class="add">Add Library Dilutions</a>
+              <a href="javascript:void(0);" onclick="bulkLibraryDilutionTable('#library_table', '${libraryDilutionUnits}');" class="add">Add Library Dilutions</a>
               <a href="javascript:void(0);" onclick="Project.barcode.selectLibraryBarcodesToPrint('#library_table');">Print Barcodes ...</a>
             </c:if>
           </div>
@@ -1006,7 +1000,6 @@
             <th>Tag Barcodes</th>
             <th>Insert Size</th>
             <th>QC Passed</th>
-            <th class="fit">Edit</th>
             <sec:authorize access="hasRole('ROLE_ADMIN')">
               <th class="fit">DELETE</th>
             </sec:authorize>
@@ -1015,25 +1008,20 @@
           <tbody>
           <c:forEach items="${projectLibraries}" var="library">
             <tr libraryId="${library.id}" onMouseOver="this.className='highlightrow'" onMouseOut="this.className='normalrow'">
-              <td><b>${library.name}</b></td>
-              <td>${library.alias}</td>
+              <td><b><a href="<c:url value='/miso/library/${library.id}'/>">${library.name}</a></b></td>
+              <td><a href="<c:url value='/miso/library/${library.id}'/>">${library.alias}</a></td>
               <td>${library.creationDate}</td>
               <td>${library.description}</td>
               <td>${library.libraryType.description}</td>
               <td>${library.platformName}</td>
               <td><c:if test="${not empty library.tagBarcodes}">
-                <c:forEach items="${library.tagBarcodes}" varStatus="status" var="barcodemap">
-                  ${status.count}: ${barcodemap.value.name} (${barcodemap.value.sequence})
-                  <c:if test="${status.count lt fn:length(library.tagBarcodes)}">
-                    <br/>
-                  </c:if>
+                <c:forEach items="${library.tagBarcodes}" varStatus="status" var="barcode">
+                  <c:if test="${status.index gt 0}"><br/></c:if>
+                  ${status.count}: ${barcode.name} (${barcode.sequence})
                 </c:forEach>
               </c:if></td>
               <td><c:forEach var="qc" items="${library.libraryQCs}" end="0">${qc.insertSize}</c:forEach></td>
               <td>${library.qcPassed}</td>
-              <td class="misoicon" onclick="window.location.href='<c:url value="/miso/library/${library.id}"/>'">
-                <span class="ui-icon ui-icon-pencil"/>
-              </td>
               <sec:authorize access="hasRole('ROLE_ADMIN')">
                 <td class="misoicon" onclick="Library.deleteLibrary(${library.id}, Utils.page.pageReload);">
                   <span class="ui-icon ui-icon-trash"/>
@@ -1058,7 +1046,6 @@
                 null,
                 null,
                 null,
-                null,
                 null
                 <sec:authorize access="hasRole('ROLE_ADMIN')">, null</sec:authorize>
               ],
@@ -1073,7 +1060,7 @@
     <div id="libtab-2">
       <c:forEach items="${project.overviews}" var="overview" varStatus="ov">
         <c:if test="${not empty overview.sampleGroup}">
-        <div id="overviewlibdiv${overview.overviewId}" class="ui-corner-all simplebox">
+        <div id="overviewlibdiv${overview.id}" class="ui-corner-all simplebox">
           <h1>Group ${overview.sampleGroup.id} Libraries</h1>
           <ul class="sddm">
             <li>
@@ -1088,7 +1075,7 @@
 
                 <c:if test="${not empty projectLibraries}">
                   <a href="javascript:void(0);" onclick="bulkLibraryQcTable('#overview_librarygroup_table_${overview.id}');" class="add">QC these Libraries</a>
-                  <a href="javascript:void(0);" onclick="bulkLibraryDilutionTable('#overview_librarygroup_table_${overview.id}');" class="add">Add Library Dilutions</a>
+                  <a href="javascript:void(0);" onclick="bulkLibraryDilutionTable('#overview_librarygroup_table_${overview.id}', '${libraryDilutionUnits}');" class="add">Add Library Dilutions</a>
                   <a href="javascript:void(0);" onclick="Project.barcode.selectLibraryBarcodesToPrint('#overview_librarygroup_table_${overview.id}');">Print Barcodes ...</a>
                 </c:if>
               </div>
@@ -1109,7 +1096,6 @@
                 <th>Tag Barcodes</th>
                 <th>Insert Size</th>
                 <th>QC Passed</th>
-                <th class="fit">Edit</th>
                 <sec:authorize access="hasRole('ROLE_ADMIN')">
                   <th class="fit">DELETE</th>
                 </sec:authorize>
@@ -1118,25 +1104,20 @@
               <tbody>
               <c:forEach items="${libraryGroupMap[overview.id]}" var="grouplib" varStatus="lg">
                 <tr libraryId="${grouplib.id}" onMouseOver="this.className='highlightrow'" onMouseOut="this.className='normalrow'">
-                  <td><b>${grouplib.name}</b></td>
-                  <td>${grouplib.alias}</td>
+                  <td><b><a href="<c:url value='/miso/library/${grouplib.id}'/>">${grouplib.name}</a></b></td>
+                  <td><a href="<c:url value='/miso/library/${grouplib.id}'/>">${grouplib.alias}</a></td>
                   <td>${grouplib.creationDate}</td>
                   <td>${grouplib.description}</td>
                   <td>${grouplib.libraryType.description}</td>
                   <td>${grouplib.platformName}</td>
                   <td><c:if test="${not empty grouplib.tagBarcodes}">
-                    <c:forEach items="${grouplib.tagBarcodes}" varStatus="status" var="barcodemap">
-                      ${status.count}: ${barcodemap.value.name} (${barcodemap.value.sequence})
-                      <c:if test="${status.count lt fn:length(grouplib.tagBarcodes)}">
-                        <br/>
-                      </c:if>
+                    <c:forEach items="${grouplib.tagBarcodes}" varStatus="status" var="barcode">
+                       <c:if test="${status.index gt 0}"><br/></c:if>
+                       ${status.count}: ${barcode.name} (${barcode.sequence})
                     </c:forEach>
                   </c:if></td>
                   <td><c:forEach var="qc" items="${grouplib.libraryQCs}" end="0">${qc.insertSize}</c:forEach></td>
                   <td>${grouplib.qcPassed}</td>
-                  <td class="misoicon" onclick="window.location.href='<c:url value="/miso/library/${grouplib.id}"/>'">
-                    <span class="ui-icon ui-icon-pencil"/>
-                  </td>
                   <sec:authorize access="hasRole('ROLE_ADMIN')">
                     <td class="misoicon" onclick="Library.deleteLibrary(${grouplib.id}, Utils.page.pageReload);">
                       <span class="ui-icon ui-icon-trash"/>
@@ -1157,7 +1138,6 @@
                     { "sType": 'natural' },
                     { "sType": 'natural' },
                     { "sType": 'natural' },
-                    null,
                     null,
                     null,
                     null,
@@ -1219,8 +1199,7 @@
         <th>Dilution Creator</th>
         <th>Dilution Creation Date</th>
         <th>Dilution Platform</th>
-        <th>Dilution Concentration</th>
-        <th class="fit">Edit</th>
+        <th>Dilution Concentration (${libraryDilutionUnits})</th>
         <sec:authorize access="hasRole('ROLE_ADMIN')">
           <th class="fit">DELETE</th>
         </sec:authorize>
@@ -1229,16 +1208,14 @@
       <tbody>
       <c:forEach items="${projectLibraryDilutions}" var="dil">
         <tr dilutionId="${dil.id}" onMouseOver="this.className='highlightrow'" onMouseOut="this.className='normalrow'">
-          <td><b>${dil.name}</b></td>
-          <td>${dil.library.alias}<c:if test="${not empty dil.library.tagBarcode}">
-            (${dil.library.tagBarcode.name})</c:if></td>
+          <td><b><a href="<c:url value='/miso/library/${dil.library.id}'/>">${dil.name}</a></b></td>
+          <td><a href="<c:url value='/miso/library/${dil.library.id}'/>">${dil.library.alias}</a>
+            <c:if test="${not empty dil.library.tagBarcodes}">(<c:forEach items="${dil.library.tagBarcodes}" varStatus="status" var="barcode"><c:if test="${status.index gt 0}">, </c:if>${barcode.name}</c:forEach>)</c:if>
+          </td>
           <td>${dil.dilutionCreator}</td>
           <td>${dil.creationDate}</td>
           <td>${dil.library.platformName}</td>
           <td>${dil.concentration}</td>
-          <td class="misoicon" onclick="window.location.href='<c:url value="/miso/library/${dil.library.id}"/>'">
-            <span class="ui-icon ui-icon-pencil"/>
-          </td>
           <sec:authorize access="hasRole('ROLE_ADMIN')">
             <td class="misoicon" onclick="Library.dilution.deleteLibraryDilution(${dil.id}, Utils.page.pageReload);">
               <span class="ui-icon ui-icon-trash"/>
@@ -1258,7 +1235,6 @@
           "aoColumns": [
             null,
             { "sType": 'natural' },
-            null,
             null,
             null,
             null,
@@ -1306,8 +1282,7 @@
         <th>Pool Alias</th>
         <th>Pool Platform</th>
         <th>Pool Creation Date</th>
-        <th>Pool Concentration</th>
-        <th class="fit">Edit</th>
+        <th>Pool Concentration (${poolConcentrationUnits})</th>
         <sec:authorize access="hasRole('ROLE_ADMIN')">
           <th class="fit">DELETE</th>
         </sec:authorize>
@@ -1316,15 +1291,11 @@
       <tbody>
       <c:forEach items="${projectPools}" var="pool">
         <tr poolId="${pool.id}" onMouseOver="this.className='highlightrow'" onMouseOut="this.className='normalrow'">
-          <td><b>${pool.name}</b></td>
-          <td>${pool.alias}</td>
+          <td><b><a href="<c:url value='/miso/pool/${pool.id}'/>">${pool.name}</a></b></td>
+          <td><a href="<c:url value='/miso/pool/${pool.id}'/>">${pool.alias}</a></td>
           <td>${pool.platformType.key}</td>
           <td>${pool.creationDate}</td>
           <td>${pool.concentration}</td>
-            <%-- <td class="misoicon" onclick="window.location.href='<c:url value="/miso/pool/${fn:toLowerCase(pool.platformType.key)}/${pool.id}"/>'"><span class="ui-icon ui-icon-pencil"/></td> --%>
-          <td class="misoicon" onclick="window.location.href='<c:url value="/miso/pool/${pool.id}"/>'">
-            <span class="ui-icon ui-icon-pencil"/>
-          </td>
           <sec:authorize access="hasRole('ROLE_ADMIN')">
             <td class="misoicon" onclick="Pool.deletePool(${pool.id}, Utils.page.pageReload);">
               <span class="ui-icon ui-icon-trash"/>
@@ -1344,7 +1315,6 @@
           "aoColumns": [
             null,
             { "sType": 'natural' },
-            null,
             null,
             null,
             null
@@ -1393,7 +1363,6 @@
         <th>EmPCR Creator</th>
         <th>EmPCR Creation Date</th>
         <th>EmPCR Concentration</th>
-        <th class="fit">Edit</th>
         <sec:authorize access="hasRole('ROLE_ADMIN')">
           <th class="fit">DELETE</th>
         </sec:authorize>
@@ -1402,14 +1371,12 @@
       <tbody>
       <c:forEach items="${projectEmPcrs}" var="pcr">
         <tr pcrId="${pcr.id}" onMouseOver="this.className='highlightrow'" onMouseOut="this.className='normalrow'">
-          <td><b>${pcr.name}</b></td>
-          <td>${pcr.libraryDilution.name}</td>
+          <td><b><a href="<c:url value='/miso/library/${pcr.libraryDilution.library.id}'/>">${pcr.name}</a></b></td>
+          <td><a href="<c:url value='/miso/library/${pcr.libraryDilution.library.id}'/>">${pcr.libraryDilution.name}</a></td>
           <td>${pcr.pcrCreator}</td>
           <td>${pcr.creationDate}</td>
           <td>${pcr.concentration}</td>
-          <td class="misoicon" onclick="window.location.href='<c:url value="/miso/library/${pcr.libraryDilution.library.id}"/>'">
-            <span class="ui-icon ui-icon-pencil"/>
-          </td>
+
           <sec:authorize access="hasRole('ROLE_ADMIN')">
             <td class="misoicon" onclick="Library.empcr.deleteEmPCR(${pcr.id}, Utils.page.pageReload);">
               <span class="ui-icon ui-icon-trash"/>
@@ -1429,7 +1396,6 @@
           "aoColumns": [
             { "sType": 'natural' },
             { "sType": 'natural' },
-            null,
             null,
             null,
             null
@@ -1473,7 +1439,6 @@
         <th>Dilution Creator</th>
         <th>Dilution Creation Date</th>
         <th>Dilution Concentration</th>
-        <th class="fit">Edit</th>
         <sec:authorize access="hasRole('ROLE_ADMIN')">
           <th class="fit">DELETE</th>
         </sec:authorize>
@@ -1482,13 +1447,11 @@
       <tbody>
       <c:forEach items="${projectEmPcrDilutions}" var="dil">
         <tr dilutionId="${dil.id}" onMouseOver="this.className='highlightrow'" onMouseOut="this.className='normalrow'">
-          <td><b>${dil.name}</b></td>
+          <td><b><a href="<c:url value='/miso/library/${dil.library.id}'/>">${dil.name}</a></b></td>
           <td>${dil.dilutionCreator}</td>
           <td>${dil.creationDate}</td>
           <td>${dil.concentration}</td>
-          <td class="misoicon" onclick="window.location.href='<c:url value="/miso/library/${dil.library.id}"/>'">
-            <span class="ui-icon ui-icon-pencil"/>
-          </td>
+
           <sec:authorize access="hasRole('ROLE_ADMIN')">
             <td class="misoicon" onclick="Library.empcr.deleteEmPCRDilution(${dil.id}, Utils.page.pageReload);">
               <span class="ui-icon ui-icon-trash"/>
@@ -1505,7 +1468,6 @@
             [2, 'asc']
           ],
           "aoColumns": [
-            null,
             null,
             null,
             null,
@@ -1550,7 +1512,6 @@
         <th>Plate Name</th>
         <th>Plate Size</th>
         <th>Plate Creation Date</th>
-        <th class="fit">Edit</th>
         <sec:authorize access="hasRole('ROLE_ADMIN')">
           <th class="fit">DELETE</th>
         </sec:authorize>
@@ -1559,13 +1520,9 @@
       <tbody>
       <c:forEach items="${projectPlates}" var="plate">
         <tr poolId="${plate.id}" onMouseOver="this.className='highlightrow'" onMouseOut="this.className='normalrow'">
-          <td><b>${plate.name}</b></td>
+          <td><b><a href="<c:url value='/miso/plate/${plate.id}'/>">${plate.name}</a></b></td>
           <td>${plate.size}</td>
           <td>${plate.creationDate}</td>
-            <%-- <td class="misoicon" onclick="window.location.href='<c:url value="/miso/pool/${fn:toLowerCase(pool.platformType.key)}/${pool.id}"/>'"><span class="ui-icon ui-icon-pencil"/></td> --%>
-          <td class="misoicon" onclick="window.location.href='<c:url value="/miso/plate/${plate.id}"/>'">
-            <span class="ui-icon ui-icon-pencil"/>
-          </td>
           <sec:authorize access="hasRole('ROLE_ADMIN')">
             <td class="misoicon" onclick="Plate.deletePlate(${plate.id}, Utils.page.pageReload);">
               <span class="ui-icon ui-icon-trash"/>
@@ -1583,7 +1540,6 @@
             [2, 'asc']
           ],
           "aoColumns": [
-            null,
             null,
             null,
             null
@@ -1611,7 +1567,6 @@
       <th>Run Name</th>
       <th>Run Alias</th>
       <th>Partitions</th>
-      <th class="fit">Edit</th>
       <sec:authorize access="hasRole('ROLE_ADMIN')">
         <th class="fit">DELETE</th>
       </sec:authorize>
@@ -1620,8 +1575,8 @@
     <tbody>
     <c:forEach items="${projectRuns}" var="run" varStatus="runCount">
       <tr runId="${run.id}" onMouseOver="this.className='highlightrow'" onMouseOut="this.className='normalrow'">
-        <td><b>${run.name}</b></td>
-        <td>${run.alias}</td>
+        <td><a href="<c:url value='/miso/run/${run.id}'/>"><b>${run.name}</b></a></td>
+        <td><a href="<c:url value='/miso/run/${run.id}'/>">${run.alias}</a></td>
         <td>
           <c:forEach items="${run.sequencerPartitionContainers}" var="container" varStatus="fCount">
             <table class="containerSummary">
@@ -1646,9 +1601,6 @@
             </c:if>
           </c:forEach>
         </td>
-        <td class="misoicon" onclick="window.location.href='<c:url value="/miso/run/${run.id}"/>'">
-          <span class="ui-icon ui-icon-pencil"/>
-        </td>
         <sec:authorize access="hasRole('ROLE_ADMIN')">
           <td class="misoicon" onclick="Run.deleteRun(${run.id}, Utils.page.pageReload);">
             <span class="ui-icon ui-icon-trash"/>
@@ -1666,7 +1618,6 @@
           [1, 'asc']
         ],
         "aoColumns": [
-          null,
           null,
           null,
           null
@@ -1712,34 +1663,28 @@ jQuery(document).ready(function () {
 
 <c:if test="${not empty project.samples}">
     <script type="text/javascript">
-        var projectId_sample = ${project.id};
-        var sampleQcTypesString = {${sampleQcTypesString}};
+      projectId_sample = ${project.id};
+      sampleQcTypesString = {${sampleQcTypesString}};
     </script>
-    <script src="<c:url value='/scripts/editProject_sample.js?ts=${timestamp.time}'/>" type="text/javascript"></script>
 </c:if>
 
 <c:if test="${not empty projectLibraries}">
     <script type="text/javascript">
-        var libraryQcTypesString = {${libraryQcTypesString}};
+      libraryQcTypesString = {${libraryQcTypesString}};
     </script>
-    <script src="<c:url value='/scripts/editProject_library.js?ts=${timestamp.time}'/>" type="text/javascript"></script>
-</c:if>
-
-<c:if test="${existsAnyEmPcrLibrary and not empty projectLibraryDilutions}">
-    <script src="<c:url value='/scripts/editProject_libraryDilution.js?ts=${timestamp.time}'/>"
-            type="text/javascript"></script>
-</c:if>
-
-<c:if test="${not empty projectEmPcrs}">
-    <script src="<c:url value='/scripts/editProject_empcr.js?ts=${timestamp.time}'/>" type="text/javascript"></script>
 </c:if>
 
 <c:if test="${project.id != 0}">
     <script type="text/javascript">
-        var projectId_d3graph = ${project.id};
+        projectId_d3graph = ${project.id};
+        getProjectD3Json();
     </script>
-    <script src="<c:url value='/scripts/editProject_existing.js?ts=${timestamp.time}'/>"
-            type="text/javascript"></script>
+
 </c:if>
+</div>
+</div>
+</div>
+
+<%@ include file="adminsub.jsp" %>
 
 <%@ include file="../footer.jsp" %>

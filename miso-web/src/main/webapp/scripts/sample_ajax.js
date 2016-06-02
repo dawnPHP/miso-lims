@@ -27,11 +27,16 @@ var Sample = Sample || {
       Fluxion.doAjax(
         'sampleControllerHelperService',
         'deleteSample',
-        {'sampleId': sampleId, 'url': ajaxurl},
-        {'doOnSuccess': function (json) {
-          successfunc();
+        {
+          'sampleId': sampleId,
+          'url': ajaxurl
+        },
+        {
+          'doOnSuccess': function (json) {
+            successfunc();
+          }
         }
-      });
+      );
     }
   },
 
@@ -40,23 +45,28 @@ var Sample = Sample || {
       Fluxion.doAjax(
         'sampleControllerHelperService',
         'removeSampleFromGroup',
-        {'sampleId': sampleId, 'sampleGroupId':sampleGroupId, 'url': ajaxurl},
-        {'doOnSuccess': function (json) {
-          successfunc();
+        {
+          'sampleId': sampleId,
+          'sampleGroupId':sampleGroupId,
+          'url': ajaxurl
+        },
+        {
+          'doOnSuccess': function (json) {
+            successfunc();
+          }
         }
-      });
+      );
     }
   },
   
-  validateSample: function () {
+  validateSample: function (isDetailedSample, isNewSample) {
     Validate.cleanFields('#sample-form');
     jQuery('#sample-form').parsley().destroy();
 
     // Alias input field validation
+    // 'data-parsley-required' attribute is set in JSP based on whether alias generation is enabled
     jQuery('#alias').attr('class', 'form-control');
-    jQuery('#alias').attr('data-parsley-required', 'true');
     jQuery('#alias').attr('data-parsley-maxlength', '100');
-    jQuery('#description').attr('data-parsley-pattern', Utils.validation.sanitizeRegex);
 
     // Description input field validation
     jQuery('#description').attr('class', 'form-control');
@@ -64,13 +74,10 @@ var Sample = Sample || {
     jQuery('#description').attr('data-parsley-maxlength', '100');
     jQuery('#description').attr('data-parsley-pattern', Utils.validation.sanitizeRegex);
 
-    // Checkbox validation: ensure a checkbox is selected (assumes there is a project 1, no other way to check because of dynamic
-    // generation)
-    jQuery('#project1').attr('data-parsley-maxcheck', '1');
-    jQuery('#project1').attr('required', 'true');
-    jQuery('#projectlist').attr('data-parsley-error-message', 'You must select a project.');
-    jQuery('#projectlist').attr('data-parsley-errors-container', '#projectError');
-    jQuery('#projectlist').attr('data-parsley-class-handler', '#projectlist');
+    // Project validation
+    jQuery('#project').attr('class', 'form-control');
+    jQuery('#project').attr('data-parsley-required', 'true');
+    jQuery('#project').attr('data-parsley-error-message', 'You must select a project.');
 
     // Date of Receipt validation: ensure date is of correct form
     jQuery('#receiveddatepicker').attr('class', 'form-control');
@@ -90,10 +97,94 @@ var Sample = Sample || {
     jQuery('#scientificName').attr('data-parsley-maxlength', '100');
     jQuery('#scientificName').attr('data-parsley-pattern', Utils.validation.sanitizeRegex);
 
+    // Volume validation
+    jQuery('#volume').attr('class', 'form-control');
+    jQuery('#volume').attr('data-parsley-required', 'true');
+    jQuery('#volume').attr('data-parsley-maxlength', '10');
+    jQuery('#volume').attr('data-parsley-type', 'number');
+
+    if (isDetailedSample) {
+      
+      if (isNewSample) {
+        // External Name validation
+        jQuery('#externalName').attr('class', 'form-control');
+        jQuery('#externalName').attr('data-parsley-required', 'true');
+        jQuery('#externalName').attr('data-parsley-maxlength', '255');
+        jQuery('#externalName').attr('data-parsley-pattern', Utils.validation.sanitizeRegex);
+      }
+      
+      // SampleClass validation
+      jQuery('#sampleClass').attr('class', 'form-control');
+      jQuery('#sampleClass').attr('data-parsley-required', 'true');
+      
+      // TissueOrigin validation
+      jQuery('#tissueOrigin').attr('class', 'form-control');
+      jQuery('#tissueOrigin').attr('data-parsley-required', 'true');
+      
+      // TissueType validation
+      jQuery('#tissueType').attr('class', 'form-control');
+      jQuery('#tissueType').attr('data-parsley-required', 'true');
+      
+      // External Institute Identifier validation
+      jQuery('#externalInstituteIdentifier').attr('class', 'form-control');
+      jQuery('#externalInstituteIdentifier').attr('data-parsley-maxlength', '255');
+      jQuery('#externalInstituteIdentifier').attr('data-parsley-pattern', Utils.validation.sanitizeRegex);
+      
+      // PassageNumber validation
+      jQuery('#passageNumber').attr('class', 'form-control');
+      jQuery('#passageNumber').attr('data-parsley-type', 'integer');
+      
+      // TimesReceived validation
+      jQuery('#timesReceived').attr('class', 'form-control');
+      jQuery('#timesReceived').attr('data-parsley-required', 'true');
+      jQuery('#timesReceived').attr('data-parsley-type', 'integer');
+      
+      // TubeNumber validation
+      jQuery('#tubeNumber').attr('class', 'form-control');
+      jQuery('#tubeNumber').attr('data-parsley-required', 'true');
+      jQuery('#tubeNumber').attr('data-parsley-type', 'integer');
+      
+      // Concentration validation
+      jQuery('#concentration').attr('class', 'form-control');
+      jQuery('#concentration').attr('data-parsley-type', 'number');
+      
+      var selectedId = jQuery('#sampleClass option:selected').val();
+      var sampleCategory = Sample.options.getSampleCategoryByClassId(selectedId);
+      switch (sampleCategory) {
+      case 'Tissue':
+        // Cellularity validation
+        jQuery('#cellularity').attr('class', 'form-control');
+        jQuery('#cellularity').attr('data-parsley-type', 'integer');
+        break;
+      case 'Analyte':
+        // Region validation
+        jQuery('#region').attr('class', 'form-control');
+        jQuery('#region').attr('data-parsley-maxlength', '255');
+        jQuery('#region').attr('data-parsley-pattern', Utils.validation.sanitizeRegex);
+        
+        // TubeId validation
+        jQuery('#tubeId').attr('class', 'form-control');
+        jQuery('#tubeId').attr('data-parsley-maxlength', '255');
+        jQuery('#tubeId').attr('data-parsley-pattern', Utils.validation.sanitizeRegex);
+        
+        // Group ID validation
+        jQuery('#groupId').attr('class', 'form-control');
+        jQuery('#groupId').attr('data-parsley-type', 'integer');
+        
+        // Group Description validation
+        jQuery('#groupDescription').attr('class', 'form-control');
+        jQuery('#groupDescription').attr('data-parsley-maxlength', '255');
+        jQuery('#groupDescription').attr('data-parsley-pattern', Utils.validation.sanitizeRegex);
+        break;
+      }
+    }
+    
     Fluxion.doAjax(
       'sampleControllerHelperService',
       'getSampleAliasRegex',
-      { 'url': ajaxurl },
+      { 
+        'url': ajaxurl
+      },
       {
         'doOnSuccess': function(json) {
           var regex = json.aliasRegex.split(' ').join('+');
@@ -162,7 +253,9 @@ Sample.qc = {
         'sampleId': sampleId,
         'url': ajaxurl
       },
-      {'doOnSuccess': self.insertSampleQCRow}
+      {
+        'doOnSuccess': self.insertSampleQCRow
+      }
     );
   },
 
@@ -170,23 +263,23 @@ Sample.qc = {
     if (!jQuery('#sampleQcTable').attr("qcInProgress")) {
       jQuery('#sampleQcTable').attr("qcInProgress", "true");
 
-      $('sampleQcTable').insertRow(1);
+      jQuery('#sampleQcTable')[0].insertRow(1);
       //QCId  QCed By  	QC Date  	Method  	Results
 
       if (includeId) {
-        var column1 = $('sampleQcTable').rows[1].insertCell(-1);
+        var column1 = jQuery('#sampleQcTable')[0].rows[1].insertCell(-1);
         column1.innerHTML = "<input type='hidden' id='sampleId' name='sampleId' value='" + json.sampleId + "'/>";
       }
 
-      var column2 = $('sampleQcTable').rows[1].insertCell(-1);
+      var column2 = jQuery('#sampleQcTable')[0].rows[1].insertCell(-1);
       column2.innerHTML = "<select id='sampleQcUser' name='sampleQcUser'>" + json.qcUserOptions + "</select>";
-      var column3 = $('sampleQcTable').rows[1].insertCell(-1);
+      var column3 = jQuery('#sampleQcTable')[0].rows[1].insertCell(-1);
       column3.innerHTML = "<input id='sampleQcDate' name='sampleQcDate' type='text'/>";
-      var column4 = $('sampleQcTable').rows[1].insertCell(-1);
+      var column4 = jQuery('#sampleQcTable')[0].rows[1].insertCell(-1);
       column4.innerHTML = "<select id='sampleQcType' name='sampleQcType' onchange='Sample.qc.changeSampleQcUnits(this);'/>";
-      var column5 = $('sampleQcTable').rows[1].insertCell(-1);
+      var column5 = jQuery('#sampleQcTable')[0].rows[1].insertCell(-1);
       column5.innerHTML = "<input id='sampleQcResults' name='sampleQcResults' type='text'/><span id='units'/>";
-      var column6 = $('sampleQcTable').rows[1].insertCell(-1);
+      var column6 = jQuery('#sampleQcTable')[0].rows[1].insertCell(-1);
       column6.innerHTML = "<a href='javascript:void(0);' onclick='Sample.qc.addSampleQC();'/>Add</a>";
 
       Utils.ui.addMaxDatePicker("sampleQcDate", 0);
@@ -194,7 +287,9 @@ Sample.qc = {
       Fluxion.doAjax(
         'sampleControllerHelperService',
         'getSampleQcTypes',
-        {'url': ajaxurl},
+        {
+          'url': ajaxurl
+        },
         {
           'doOnSuccess': function (json) {
             jQuery('#sampleQcType').html(json.types);
@@ -202,13 +297,12 @@ Sample.qc = {
           }
         }
       );
-    }
-    else {
-      alert("Cannot add another QC when one is already in progress.")
+    } else {
+      alert("Cannot add another QC when one is already in progress.");
     }
   },
 
-  changeSampleQcUnits: function (input) {
+  changeSampleQcUnits: function () {
     jQuery('#units').html(jQuery('#sampleQcType').find(":selected").attr("units"));
   },
 
@@ -223,9 +317,11 @@ Sample.qc = {
         'qcDate': f.sampleQcDate,
         'qcType': f.sampleQcType,
         'results': f.sampleQcResults,
-        'url': ajaxurl},
-      {'updateElement': 'sampleQcTable',
-        'doOnSuccess': function (json) {
+        'url': ajaxurl
+      },
+      {
+        'updateElement': 'sampleQcTable',
+        'doOnSuccess': function () {
           jQuery('#sampleQcTable').removeAttr("qcInProgress");
         }
       }
@@ -258,7 +354,8 @@ Sample.qc = {
         'result': jQuery('#' + qcId).val(),
         'url': ajaxurl
       },
-      {'doOnSuccess': Utils.page.pageReload
+      {
+        'doOnSuccess': Utils.page.pageReload
       }
     );
   },
@@ -278,8 +375,8 @@ Sample.qc = {
         var at = jQuery(this).attr("name");
         obj[at] = jQuery(this).text();
       });
-      obj["qcCreator"] = jQuery('#currentUser').text();
-      obj["libraryId"] = obj["name"].substring(3);
+      obj.qcCreator = jQuery('#currentUser').text();
+      obj.libraryId = obj.name.substring(3);
       aReturn.push(obj);
     }
 
@@ -292,9 +389,11 @@ Sample.qc = {
             'qcs': aReturn,
             'url': ajaxurl
           },
-          {'doOnSuccess': function(json) {
-            Sample.library.processBulkLibraryQcTable(tableName, json);
-          }}
+          {
+            'doOnSuccess': function(json) {
+              Sample.library.processBulkLibraryQcTable(tableName, json);
+            }
+          }
         );
       }
       else {
@@ -333,10 +432,10 @@ Sample.library = {
     if (json.errors) {
       var errors = json.errors;
       var errorStr = "";
-      for (var i = 0; i < errors.length; i++) {
-        errorStr += errors[i].error + "\n";
+      for (var j = 0; j < errors.length; j++) {
+        errorStr += errors[j].error + "\n";
         jQuery(tableName).find("tr:gt(0)").each(function () {
-          if (jQuery(this).attr("libraryId") === errors[i].libraryId) {
+          if (jQuery(this).attr("libraryId") === errors[j].libraryId) {
             jQuery(this).find("td").each(function () {
               jQuery(this).css('background', '#EE9966');
             });
@@ -365,8 +464,8 @@ Sample.library = {
           var at = jQuery(this).attr("name");
           obj[at] = jQuery(this).text();
         });
-        obj["dilutionCreator"] = jQuery('#currentUser').text();
-        obj["libraryId"] = obj["name"].substring(3);
+        obj.dilutionCreator = jQuery('#currentUser').text();
+        obj.libraryId = obj.name.substring(3);
         aReturn.push(obj);
       }
     }
@@ -380,9 +479,11 @@ Sample.library = {
             'dilutions': aReturn,
             'url': ajaxurl
           },
-          {'doOnSuccess': function(json) {
-            self.processBulkLibraryDilutionTable(tableName, json);
-          }}
+          {
+            'doOnSuccess': function(json) {
+              self.processBulkLibraryDilutionTable(tableName, json);
+            }
+          }
         );
       }
       else {
@@ -419,10 +520,10 @@ Sample.library = {
     if (json.errors) {
       var errors = json.errors;
       var errorStr = "";
-      for (var i = 0; i < errors.length; i++) {
-        errorStr += errors[i].error + "\n";
+      for (var j = 0; j < errors.length; j++) {
+        errorStr += errors[j].error + "\n";
         jQuery(tableName).find("tr:gt(0)").each(function () {
-          if (jQuery(this).attr("libraryId") === errors[i].libraryId) {
+          if (jQuery(this).attr("libraryId") === errors[j].libraryId) {
             jQuery(this).find("td").each(function () {
               jQuery(this).css('background', '#EE9966');
             });
@@ -436,7 +537,7 @@ Sample.library = {
     }
   },
   
-  validateLibraryQcs: function () {
+  validateLibraryQcs: function (json) {
     var ok = true;
     for (var i = 0; i < json.length; i++) {
       if (!json[i].results.match(/[0-9\.]+/) ||
@@ -515,7 +616,127 @@ Sample.barcode = {
   }
 };
 
+Sample.options = {
+  
+  all: null,
+  
+  getSampleGroupsBySubProjectId: function(subProjectId) {
+    return Sample.options.all.sampleGroupsDtos.filter(function (sampleGroup) {
+      return sampleGroup.subprojectId == subProjectId;
+    });
+  },
+  
+  getSampleGroupsByProjectId: function(projectId) {
+    return Sample.options.all.sampleGroupsDtos.filter(function (sampleGroup) {
+      return sampleGroup.projectId == projectId && !sampleGroup.subprojectId;
+    });
+  },
+  
+  getSubProjectsByProjectId: function(projectId) {
+    return Sample.options.all.subprojectsDtos.filter(function (subProject) {
+      return subProject.parentProjectId == projectId;
+    });
+  },
+  
+  getSampleCategoryByClassId: function(sampleClassId) {
+    var results = Sample.options.all.sampleClassesDtos.filter(function (sampleClass) {
+      return sampleClass.id == sampleClassId;
+    });
+    return results.length > 0 ? results[0].sampleCategory : null;
+  }
+  
+};
+
 Sample.ui = {
+  
+  filterSampleGroupOptions: function() {
+    var validSampleGroups = [];
+    var subProjectId = Sample.ui.getSelectedSubprojectId();
+    if (subProjectId) {
+      validSampleGroups = Sample.options.getSampleGroupsBySubProjectId(subProjectId);
+    } else {
+      var projectId = Sample.ui.getSelectedProjectId();
+      if (projectId) {
+        validSampleGroups = Sample.options.getSampleGroupsByProjectId(projectId);
+      }
+    }
+    
+    jQuery('#sampleGroup').empty()
+        .append('<option value = "">None</option>');
+    for (var i = 0, l = validSampleGroups.length; i < l; i++) {
+      jQuery('#sampleGroup').append('<option value = "' + validSampleGroups[i].id + '">' + validSampleGroups[i].groupId + '</option>');
+    }
+  },
+  
+  projectChanged: function() {
+    Sample.ui.filterSubProjectOptions();
+    Sample.ui.filterSampleGroupOptions();
+  },
+  
+  subProjectChanged: function() {
+    Sample.ui.filterSampleGroupOptions();
+  },
+  
+  filterSubProjectOptions: function() {
+    var projectId = Sample.ui.getSelectedProjectId();
+    var subProjects = Sample.options.getSubProjectsByProjectId(projectId);
+    jQuery('#subProject').empty()
+        .append('<option value = "">None</option>');
+    for (var i = 0, l = subProjects.length; i < l; i++) {
+      jQuery('#subProject').append('<option value = "' + subProjects[i].id + '">' + subProjects[i].alias + '</option>');
+    }
+  },
+  
+  getSelectedProjectId: function() {
+    return jQuery('#project option:selected').val() || jQuery('#project').val();
+  },
+  
+  getSelectedSubprojectId: function() {
+    return jQuery('#subProject option:selected').val() || jQuery('#subProject').val();
+  },
+  
+  sampleClassChanged: function() {
+    var selectedId = jQuery('#sampleClass option:selected').val();
+    var sampleCategory = Sample.options.getSampleCategoryByClassId(selectedId);
+    switch (sampleCategory) {
+    case 'Tissue':
+      Sample.ui.setUpForTissue();
+      break;
+    case 'Analyte':
+      Sample.ui.setUpForAnalyte();
+      break;
+    default:
+      // Identity (can't create), Tissue Processing (no additional fields), or no SampleClass selected 
+      Sample.ui.hideTissueFields();
+      Sample.ui.hideAnalyteFields();
+      break;
+    }
+  },
+  
+  hideTissueFields: function() {
+    jQuery('#detailedSampleTissue').find(':input').each(function() {
+      jQuery(this).val('');
+    });
+    jQuery('#detailedSampleTissue').hide();
+  },
+  
+  hideAnalyteFields: function() {
+    jQuery('#detailedSampleAnalyte').find(':input').each(function() {
+      jQuery(this).val('');
+    });
+    jQuery('#detailedSampleAnalyte').hide();
+  },
+  
+  setUpForTissue: function() {
+    Sample.ui.hideAnalyteFields();
+    jQuery('#detailedSampleTissue').show();
+  },
+  
+  setUpForAnalyte: function() {
+    Sample.ui.hideTissueFields();
+    jQuery('#detailedSampleAnalyte').show();
+  },
+  
   editSampleIdBarcode: function (span, id) {
     Fluxion.doAjax(
       'loggedActionService',
@@ -545,24 +766,21 @@ Sample.ui = {
             "<input type='text' name='idBarcodeInput' id='idBarcodeInput' class='text ui-widget-content ui-corner-all' />" +
             "</fieldset></form>");
 
-    jQuery(function () {
-      jQuery('#changeSampleIdBarcodeDialog').dialog({
-        autoOpen: false,
-        width: 400,
-        modal: true,
-        resizable: false,
-        buttons: {
-          "Save": function () {
-            self.changeSampleIdBarcode(sampleId, jQuery('#idBarcodeInput').val());
-            jQuery(this).dialog('close');
-          },
-          "Cancel": function () {
-            jQuery(this).dialog('close');
-          }
+
+    jQuery('#changeSampleIdBarcodeDialog').dialog({
+      width: 400,
+      modal: true,
+      resizable: false,
+      buttons: {
+        "Save": function () {
+          self.changeSampleIdBarcode(sampleId, jQuery('#idBarcodeInput').val());
+          jQuery(this).dialog('close');
+        },
+        "Cancel": function () {
+          jQuery(this).dialog('close');
         }
-      });
+      }
     });
-    jQuery('#changeSampleIdBarcodeDialog').dialog('open');
   },
 
   changeSampleIdBarcode: function (sampleId, idBarcode) {
@@ -674,8 +892,14 @@ Sample.ui = {
       Fluxion.doAjax(
         'sampleControllerHelperService',
         'deleteSampleNote',
-        {'sampleId': sampleId, 'noteId': noteId, 'url': ajaxurl},
-        {'doOnSuccess': Utils.page.pageReload}
+        {
+          'sampleId': sampleId,
+          'noteId': noteId,
+          'url': ajaxurl
+        },
+        {
+          'doOnSuccess': Utils.page.pageReload
+        }
       );
     }
   },
@@ -683,37 +907,37 @@ Sample.ui = {
   receiveSample: function (input) {
     var barcode = jQuery(input).val();
     if (!Utils.validation.isNullCheck(barcode)) {
-      barcode = Utils.validation.base64Check(barcode);
-      jQuery(input).val(barcode);
 
       Fluxion.doAjax(
         'sampleControllerHelperService',
         'getSampleByBarcode',
-        {'barcode': barcode, 'url': ajaxurl},
-        {'doOnSuccess': function (json) {
-          var sample_desc = "<div id='" + json.id + "' class='dashboard'><table width=100%><tr><td>Sample Name: " + json.name + "<br> Sample ID: " + json.id + "<br>Desc: " + json.desc + "<br>Sample Type:" + json.type + "</td><td style='position: absolute;' align='right'><span class='float-right ui-icon ui-icon-circle-close' onclick='Sample.ui.removeSample(" + json.id + ");' style='position: absolute; top: 0; right: 0;'></span></td></tr></table> </div>";
-          if (jQuery("#" + json.id).length == 0) {
-            jQuery("#sample_pan").append(sample_desc);
-            jQuery('#msgspan').html("");
-          }
-          else {
-            jQuery('#msgspan').html("<i>This sample has already been scanned</i>");
-          }
-
-          //unbind to stop change error happening every time
-
-          //clear and focus
-          jQuery(input).val("");
-          jQuery(input).focus();
+        {
+          'barcode': barcode,
+          'url': ajaxurl
+        },
+        {
+          'doOnSuccess': function (json) {
+            var sample_desc = "<div id='" + json.id + "' class='dashboard'><table width=100%><tr><td>Sample Name: " + json.name + "<br> Sample ID: " + json.id + "<br>Desc: " + json.desc + "<br>Sample Type:" + json.type + "</td><td style='position: absolute;' align='right'><span class='float-right ui-icon ui-icon-circle-close' onclick='Sample.ui.removeSample(" + json.id + ");' style='position: absolute; top: 0; right: 0;'></span></td></tr></table> </div>";
+            if (jQuery("#" + json.id).length === 0) {
+              jQuery("#sample_pan").append(sample_desc);
+              jQuery('#msgspan').html("");
+            } else {
+              jQuery('#msgspan').html("<i>This sample has already been scanned</i>");
+            }
+  
+            //unbind to stop change error happening every time
+  
+            //clear and focus
+            jQuery(input).val("");
+            jQuery(input).focus();
           },
           'doOnError': function (json) {
             jQuery('#msgspan').html("<i>" + json.error + "</i>");
           }
         }
       );
-    }
-    else {
-      jQuery('#msgspan').html("")
+    } else {
+      jQuery('#msgspan').html("");
     }
   },
 
@@ -723,7 +947,7 @@ Sample.ui = {
 
   setSampleReceiveDate: function (sampleList) {
     var samples = [];
-    jQuery(sampleList).children('div').each(function (e) {
+    jQuery(sampleList).children('div').each(function () {
       var sdiv = jQuery(this);
       samples.push({'sampleId': sdiv.attr("id")});
     });
@@ -732,13 +956,17 @@ Sample.ui = {
       Fluxion.doAjax(
         'sampleControllerHelperService',
         'setSampleReceivedDateByBarcode',
-        {'samples': samples, 'url': ajaxurl},
-        {'doOnSuccess': function (json) {
-          alert(json.result);
+        {
+          'samples': samples,
+          'url': ajaxurl
+        },
+        {
+          'doOnSuccess': function (json) {
+            alert(json.result);
+          }
         }
-      });
-    }
-    else {
+      );
+    } else {
       alert("No samples scanned");
     }
   },
@@ -761,31 +989,208 @@ Sample.ui = {
       {
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        jQuery('#listingSamplesTable').html('');
-        jQuery('#listingSamplesTable').dataTable({
-          "aaData": json.array,
-          "aoColumns": [
-            { "sTitle": "Sample Name", "sType": "no-sam"},
-            { "sTitle": "Alias"},
-            { "sTitle": "Type"},
-            { "sTitle": "QC Passed"},
-            { "sTitle": "QC Result"},
-            { "sTitle": "Edit"},
-            { "sTitle": "ID", "bVisible": false}
-          ],
-          "bJQueryUI": true,
-          "bAutoWidth": false,
-          "iDisplayLength": 25,
-          "sDom": '<l<"#toolbar">f>r<t<"fg-toolbar ui-widget-header ui-corner-bl ui-corner-br ui-helper-clearfix"ip>',
-          "aaSorting": [
-            [0, "desc"]
-          ]
-        });
-        jQuery("#toolbar").parent().addClass("fg-toolbar ui-toolbar ui-widget-header ui-corner-tl ui-corner-tr ui-helper-clearfix");
-        jQuery("#toolbar").append("<button style=\"margin-left:5px;\" onclick=\"window.location.href='/miso/sample/new';\" class=\"fg-button ui-state-default ui-corner-all\">Add Sample</button>");
-      }
+      {
+        'doOnSuccess': function (json) {
+          jQuery('#listingSamplesTable').html('');
+          jQuery('#listingSamplesTable').dataTable({
+            "aaData": json.array,
+            "aoColumns": [
+              { "sTitle": "Bulk Edit"},
+              { "sTitle": "Sample Name", "sType": "no-sam"},
+              { "sTitle": "Alias"},
+              { "sTitle": "Type"},
+              { "sTitle": "QC Passed"},
+              { "sTitle": "QC Result"},
+              { "sTitle": "ID", "bVisible": false}
+            ],
+            "bJQueryUI": true,
+            "bAutoWidth": false,
+            "iDisplayLength": 25,
+            "sDom": '<l<"#toolbar">f>r<t<"fg-toolbar ui-widget-header ui-corner-bl ui-corner-br ui-helper-clearfix"ip>',
+            "aaSorting": [
+              [1, "desc"]
+            ]
+          });
+          jQuery("#toolbar").parent().addClass("fg-toolbar ui-toolbar ui-widget-header ui-corner-tl ui-corner-tr ui-helper-clearfix");
+          jQuery("#toolbar").append("<button style=\"margin-left:5px;\" onclick=\"window.location.href='/miso/sample/new';\" class=\"fg-button ui-state-default ui-corner-all\">Add Sample</button>");
+  
+          jQuery("input[class='bulkCheckbox']").click(function () {
+            if (jQuery(this).parent().parent().hasClass('row_selected')) {
+              jQuery(this).parent().parent().removeClass('row_selected');
+            } else if (!jQuery(this).parent().parent().hasClass('row_selected')) {
+              jQuery(this).parent().parent().addClass('row_selected');
+            }
+          });
+  
+          var selectAll = '<label><input type="checkbox" onchange="Sample.ui.checkAll(this)" id="checkAll">Select All</label>';
+          document.getElementById('listingSamplesTable').insertAdjacentHTML('beforebegin', selectAll);
+          
+          var actions = ['<select id="dropdownActions" onchange="Sample.ui.checkForPropagate(this);"><option value="">-- Bulk actions</option>'];
+          actions.push('<option value="update">Update selected</option>');
+          actions.push('<option value="propagateSams">Propagate (sample) selected</option>');
+          actions.push('<option value="propagateLibs">Propagate (library) selected</option>');
+          actions.push('<option value="empty">Empty selected</option>');
+          actions.push('<option value="archive">Archive selected</option>');
+          actions.push('</select>');
+          document.getElementById('listingSamplesTable').insertAdjacentHTML('afterend', actions.join(''));
+          var goButton = '<div id="classOptions"></div><button id="go" type="button" onclick="Sample.ui.handleBulkAction();">Go</button>';
+          document.getElementById('dropdownActions').insertAdjacentHTML('afterend', goButton);
+          if (Sample.detailedSample) Sample.ui.getSampleClasses();
+        }
       }
     );
+  },
+  
+  checkAll: function (el) {
+    var checkboxes = document.getElementsByClassName('bulkCheckbox');
+    if (el.checked) {
+      for (var i = 0; i < checkboxes.length; i++) {
+        checkboxes[i].checked = true;
+      }
+    } else {
+      for (var i = 0; i < checkboxes.length; i++) {
+        checkboxes[i].checked = false;
+      }
+    }
+  },
+  
+  checkForPropagate: function (el) {
+    var selectedValue = el.options[el.selectedIndex].value;
+    if (selectedValue == 'propagateSams') {
+      Sample.ui.insertSampleClassesDropdown();
+    } else if (selectedValue == 'propagateLibs') {
+      Sample.ui.insertLibraryDesignDropdown();
+    } else {
+      document.getElementById('classOptions').innerHTML = '';
+    }
+  },
+  
+  handleBulkAction: function () {
+    var selectedValue = document.getElementById('dropdownActions').value;
+    var options = {
+      "update": Sample.ui.updateSelectedItems,
+      "propagateSams": Sample.ui.propagateSamSelectedItems,
+      "propagateLibs": Sample.ui.propagateLibSelectedItems,
+      "empty": Sample.ui.emptySelectedItems,
+      "archive": Sample.ui.archiveSelectedItems
+    }
+    var action = options[selectedValue];
+    action();
+  },
+  
+  // get array of selected IDs
+  getSelectedIds: function () {
+    return [].slice.call(document.getElementsByClassName('bulkCheckbox'))
+             .filter(function (input) { return input.checked; })
+             .map(function (input) { return input.value; });
+  },
+  
+  updateSelectedItems: function () {
+    var selectedIdsArray = Sample.ui.getSelectedIds();
+    if (selectedIdsArray.length === 0) {
+      alert("Please select one or more Samples to update.");
+      return false;
+    }
+    window.location="sample/bulk/edit/" + selectedIdsArray.join(',');
+  },
+
+  // TODO: fix this up to work with plain samples
+  // TODO: add some logic in here for SampleValidRelationships
+  propagateSamSelectedItems: function () {
+    var selectedClassId = document.getElementById('classDropdown').value;
+    var selectedIdsArray = Sample.ui.getSelectedIds();
+    if (selectedIdsArray.length === 0) {
+      alert("Please select one or more Samples to propagate.");
+      return false;
+    }
+    window.location="sample/bulk/create/" + selectedIdsArray.join(',') + "&scid=" + selectedClassId;
+  },
+  
+  propagateLibSelectedItems: function () {
+    var selectedIdsArray = Sample.ui.getSelectedIds();
+    if (selectedIdsArray.length === 0) {
+      alert("Please select one or more Samples to propagate.");
+      return false;
+    }
+    window.location="library/bulk/propagate/" + selectedIdsArray.join(',');
+  },
+  
+  // TODO: finish this, and the one in library_ajax.js
+  emptySelectedItems: function () {
+    var selectedIdsArray = Sample.ui.getSelectedIds();
+    if (selectedIdsArray.length === 0) {
+      alert("Please select one or more Samples to empty.");
+      return false;
+    }
+    var cageDiv = '<div id="cageDialog"><span class="dialog">Look for this feature in the next release!<br>' 
+                  + '<img src="http://images.mentalfloss.com/sites/default/files/styles/insert_main_wide_image/public/tumblr_m3fc1bghyt1rq84v4o1_1280.png"/></span></div>';
+    document.getElementById('go').insertAdjacentHTML('afterend', cageDiv);
+    jQuery('#cageDialog').dialog({
+      modal: true,
+      width: 620,
+      buttons: {
+        "Ok": function () {
+          jQuery(this).dialog("close");
+        }
+      }
+    });
+  },
+  
+  // TODO: finish this, and the one in library_ajax.js
+  archiveSelectedItems: function () {
+    var selectedIdsArray = Sample.ui.getSelectedIds();
+    if (selectedIdsArray.length === 0) {
+      alert("Please select one or more Samples to archive.");
+      return false;
+    }
+    var cageDiv = '<div id="cageDialog"><span class="dialog">Look for this feature in the next release!<br>' 
+      + '<img src="http://dorkshelf.com/wordpress/wp-content/uploads//2012/02/Raising-Arizona-Nicolas-Cage-2.jpg"/></span></div>';
+    document.getElementById('go').insertAdjacentHTML('afterend', cageDiv);
+    jQuery('#cageDialog').dialog({
+      modal: true,
+      width: 620,
+      buttons: {
+        "Ok": function () {
+          jQuery(this).dialog("close");
+        }
+      }
+    });
+  },
+  
+  getSampleClasses: function () {
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === XMLHttpRequest.DONE) {
+        xhr.status == 200 ? (Sample.sampleClasses = JSON.parse(xhr.responseText)) : console.log(xhr);
+      }
+    };
+    xhr.open('GET', '/miso/rest/sampleclasses');
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send();
+  },
+  
+  insertSampleClassesDropdown: function () {
+    var classes = Sample.sampleClasses.sort(function(a, b) {
+        return a.id > b.id ? 1 : ((b.id > a.id) ? -1 : 0);
+      });
+    var select = [];
+    select.push('<select id="classDropdown">');
+    select.push('<option value="">-- Select child class</option>');
+    for (var i=0; i<classes.length; i++) {
+      if (classes[i].alias == "Identity") continue;
+      select.push('<option value="'+ classes[i].id +'">'+ classes[i].alias +'</option>');
+    }
+    select.push('</select>');
+    document.getElementById('classOptions').innerHTML = select.join('');
+  },
+  
+  // TODO: add library propagation rule-checking here
+  insertLibraryDesignDropdown: function () {
+    
   }
 };
+
+window.addEventListener('error', function (e) {
+  var error = e.error;
+  console.log(error);
+});

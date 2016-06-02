@@ -108,7 +108,9 @@ public class ContainerControllerHelperService {
         srb.append("<select name='sequencer' id='sequencerReference' onchange='Container.ui.populateContainerOptions(this);'>");
         srb.append("<option value='0' selected='selected'>Please select...</option>");
         for (SequencerReference sr : requestManager.listSequencerReferencesByPlatformType(pt)) {
-          srb.append("<option value='" + sr.getId() + "'>" + sr.getName() + " (" + sr.getPlatform().getInstrumentModel() + ")</option>");
+          if (sr.isActive()) {
+            srb.append("<option value='" + sr.getId() + "'>" + sr.getName() + " (" + sr.getPlatform().getInstrumentModel() + ")</option>");
+          }
         }
         srb.append("</select>");
 
@@ -134,19 +136,19 @@ public class ContainerControllerHelperService {
           SequencerReference sr = requestManager.getSequencerReferenceById(sequencerReferenceId);
           Map<String, Object> responseMap = new HashMap<>();
           responseMap.put("partitions", getContainerOptions(sr));
-          responseMap.put("platformId", sr.getPlatform().getPlatformId());
+          responseMap.put("platformId", sr.getPlatform().getId());
           return JSONUtils.JSONObjectResponse(responseMap);
         } else {
           SequencerReference sr = requestManager.getSequencerReferenceById(sequencerReferenceId);
           lf.setPlatform(sr.getPlatform());
           Map<String, Object> responseMap = new HashMap<>();
-          responseMap.put("platformId", sr.getPlatform().getPlatformId());
+          responseMap.put("platformId", sr.getPlatform().getId());
           return JSONUtils.JSONObjectResponse(responseMap);
         }
       } else {
         Map<String, Object> responseMap = new HashMap<>();
         SequencerReference sr = requestManager.getSequencerReferenceById(sequencerReferenceId);
-        responseMap.put("platformId", sr.getPlatform().getPlatformId());
+        responseMap.put("platformId", sr.getPlatform().getId());
         return JSONUtils.JSONObjectResponse(responseMap);
       }
     } catch (IOException e) {
@@ -542,14 +544,15 @@ public class ContainerControllerHelperService {
     int partition = json.getInt("partition");
 
     try {
-      if (isStringEmptyOrNull(barcode)) {
-        if (LimsUtils.isBase64String(barcode)) {
-          // Base64-encoded string, most likely a barcode image beeped in. decode and search
-          barcode = new String(Base64.decodeBase64(barcode));
-        }
-      }
-
       Pool p = requestManager.getPoolByBarcode(barcode);
+      // Base64-encoded string, most likely a barcode image beeped in. decode and search
+      if (p == null) {
+        p = requestManager.getPoolByBarcode(new String(Base64.decodeBase64(barcode)));
+      }
+      // if pool still can't be found, return error
+      if (p == null) {
+        return JSONUtils.SimpleJSONError("Cannot find a pool with barcode " + barcode);
+      }
       SequencerPartitionContainer<SequencerPoolPartition> lf = (SequencerPartitionContainer<SequencerPoolPartition>) session
           .getAttribute("container_" + json.getString("container_cId"));
       if (lf.getPlatform().getPlatformType().equals(p.getPlatformType())) {
@@ -895,29 +898,27 @@ public class ContainerControllerHelperService {
     try {
       JSONObject j = new JSONObject();
       JSONArray jsonArray = new JSONArray();
-      for (SequencerPartitionContainer<SequencerPoolPartition> sequencePartitionContainer : requestManager
-          .listAllSequencerPartitionContainers()) {
+      for (SequencerPartitionContainer<SequencerPoolPartition> spc : requestManager.listAllSequencerPartitionContainers()) {
         String run = "";
         String sequencer = "";
-        if (sequencePartitionContainer.getRun() != null) {
-          run = "<a href=\"/miso/run/" + sequencePartitionContainer.getRun().getId() + "\">"
-              + sequencePartitionContainer.getRun().getAlias() + "</a>";
-          if (sequencePartitionContainer.getRun().getSequencerReference() != null) {
-            sequencer = "<a href=\"/miso/sequencer/" + sequencePartitionContainer.getRun().getSequencerReference().getId() + "\">"
-                + sequencePartitionContainer.getRun().getSequencerReference().getPlatform().getNameAndModel() + "</a>";
+        if (spc.getRun() != null) {
+          run = TableHelper.hyperLinkify("/miso/run/" + spc.getRun().getId(), spc.getRun().getAlias());
+          if (spc.getRun().getSequencerReference() != null) {
+            sequencer = TableHelper.hyperLinkify("/miso/sequencer/" + spc.getRun().getSequencerReference().getId(),
+                spc.getRun().getSequencerReference().getPlatform().getNameAndModel());
           }
         }
+        String identificationBarcode = (isStringEmptyOrNull(spc.getIdentificationBarcode()) ? "Unknown Barcode"
+            : spc.getIdentificationBarcode());
 
-        jsonArray
-            .add("['"
-                + (sequencePartitionContainer.getIdentificationBarcode() != null ? sequencePartitionContainer.getIdentificationBarcode()
-                    : "")
-                + "','"
-                + (sequencePartitionContainer.getPlatform() != null && sequencePartitionContainer.getPlatform().getPlatformType() != null
-                    ? sequencePartitionContainer.getPlatform().getPlatformType().getKey() : "")
-                + "','" + run + "','" + sequencer + "','" + "<a href=\"/miso/container/" + sequencePartitionContainer.getId()
-                + "\"><span class=\"ui-icon ui-icon-pencil\"></span></a>" + "']");
+        JSONArray inner = new JSONArray();
+        inner.add(TableHelper.hyperLinkify("/miso/container/" + spc.getId(), identificationBarcode));
+        inner.add(
+            spc.getPlatform() != null && spc.getPlatform().getPlatformType() != null ? spc.getPlatform().getPlatformType().getKey() : "");
+        inner.add(run);
+        inner.add(sequencer);
 
+        jsonArray.add(inner);
       }
       j.put("array", jsonArray);
       return j;

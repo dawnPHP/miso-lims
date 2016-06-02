@@ -51,7 +51,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.eaglegenomics.simlims.core.User;
 import com.eaglegenomics.simlims.core.manager.SecurityManager;
-import com.google.json.JsonSanitizer;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -179,7 +178,7 @@ public class PlateControllerHelperService {
         }
       }
       PrintJob pj = printManager.print(thingsToPrint, mps.getName(), user);
-      return JSONUtils.SimpleJSONResponse("Job " + pj.getJobId() + " : Barcodes printed.");
+      return JSONUtils.SimpleJSONResponse("Job " + pj.getId() + " : Barcodes printed.");
     } catch (MisoPrintException e) {
       log.error("print barcodes", e);
       return JSONUtils.SimpleJSONError("Failed to print barcodes: " + e.getMessage());
@@ -261,7 +260,7 @@ public class PlateControllerHelperService {
         return JSONUtils.SimpleJSONError("Failed to get plate input form: " + e.getMessage());
       }
     } else {
-      return JSONUtils.SimpleJSONError("Missing project ID or document format supplied.");
+      return JSONUtils.SimpleJSONError("Document format not specified.");
     }
   }
 
@@ -366,23 +365,26 @@ public class PlateControllerHelperService {
 
               StringBuilder seqbuilder = new StringBuilder();
               if (!l.getTagBarcodes().isEmpty()) {
-                int count = 1;
-                Collection<TagBarcode> barcodes = l.getTagBarcodes().values();
-                for (TagBarcode tb : barcodes) {
-                  strategyName = tb.getStrategyName();
+                boolean first = true;
+                for (TagBarcode tb : l.getTagBarcodes()) {
                   seqbuilder.append(tb.getSequence());
-                  if (l.getTagBarcodes().values().size() > 1 && count < l.getTagBarcodes().values().size()) {
+                  if (first) {
+                    strategyName = tb.getFamily().getName();
+                    first = false;
+                  } else {
                     seqbuilder.append("-");
                   }
-                  count++;
                 }
               } else {
                 log.info("No tag barcodes!");
               }
+              JSONArray inner = new JSONArray();
+              inner.add(TableHelper.hyperLinkify("/miso/library/" + l.getId(), l.getName()));
+              inner.add(TableHelper.hyperLinkify("/miso/library/" + l.getId(), l.getAlias()));
+              inner.add(strategyName);
+              inner.add(seqbuilder.toString());
 
-              jsonArray.add(JsonSanitizer.sanitize(
-                  "[\"" + l.getName() + "\",\"" + l.getAlias() + "\",\"" + strategyName + "\",\"" + seqbuilder.toString() + "\",'"
-                      + "<a href=\"/miso/library/" + l.getId() + "\"><span class=\"ui-icon ui-icon-pencil\"></span></a>" + "']"));
+              jsonArray.add(inner);
             }
           }
         }

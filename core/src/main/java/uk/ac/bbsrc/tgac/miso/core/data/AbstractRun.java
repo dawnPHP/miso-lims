@@ -60,7 +60,6 @@ import uk.ac.bbsrc.tgac.miso.core.exception.MalformedRunException;
 import uk.ac.bbsrc.tgac.miso.core.exception.MalformedRunQcException;
 import uk.ac.bbsrc.tgac.miso.core.security.SecurableByProfile;
 
-
 /**
  * Skeleton implementation of a Run
  * 
@@ -108,9 +107,11 @@ public abstract class AbstractRun implements Run {
   private SequencerReference sequencerReference;
 
   // listeners
-  private Set<MisoListener> listeners = new HashSet<MisoListener>();
+  private final Set<MisoListener> listeners = new HashSet<MisoListener>();
   private Set<User> watchers = new HashSet<User>();
   private User lastModifier;
+
+  private Long sequencingParametersId;
 
   @Override
   public User getLastModifier() {
@@ -123,16 +124,6 @@ public abstract class AbstractRun implements Run {
   }
 
   private final Collection<ChangeLog> changeLog = new ArrayList<>();
-  @Deprecated
-  public Long getRunId() {
-    return runId;
-  }
-
-  @Override
-  @Deprecated
-  public void setRunId(Long runId) {
-    this.runId = runId;
-  }
 
   @Override
   public long getId() {
@@ -324,6 +315,16 @@ public abstract class AbstractRun implements Run {
     this.lastUpdated = lastUpdated;
   }
 
+  @Override
+  public Long getSequencingParametersId() {
+    return sequencingParametersId;
+  }
+
+  @Override
+  public void setSequencingParametersId(Long id) {
+    this.sequencingParametersId = id;
+  }
+
   public Document getSubmissionData() {
     return submissionDocument;
   }
@@ -508,7 +509,7 @@ public abstract class AbstractRun implements Run {
 
     if (getStatus() != null) {
       sb.append(getStatus().getHealth());
-      sb.append("(" + getStatus().getStatusId() + ")");
+      sb.append("(" + getStatus().getId() + ")");
     }
     return sb.toString();
   }

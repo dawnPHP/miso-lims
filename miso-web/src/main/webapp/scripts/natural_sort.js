@@ -55,14 +55,16 @@ function naturalSort(a, b) {
     if (oFxNcL > oFyNcL) return 1;
   }
   return 0;
-};
+}
 
 jQuery(document).ready(function () {
   // Natural Sorting
-  jQuery.fn.dataTableExt.oSort['natural-asc'] = function (a, b) {
-    return naturalSort(a, b);
-  };
-  jQuery.fn.dataTableExt.oSort['natural-desc'] = function (a, b) {
-    return naturalSort(a, b) * -1;
-  };
+  if (jQuery.fn.dataTableExt) {
+    jQuery.fn.dataTableExt.oSort['natural-asc'] = function (a, b) {
+      return naturalSort(a, b);
+    };
+    jQuery.fn.dataTableExt.oSort['natural-desc'] = function (a, b) {
+      return naturalSort(a, b) * -1;
+    };
+  }
 });

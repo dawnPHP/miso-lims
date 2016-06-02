@@ -30,7 +30,6 @@
 --%>
 <%@ include file="../header.jsp" %>
 
-<script type="text/javascript" src="<c:url value='/scripts/run_ajax.js?ts=${timestamp.time}'/>"></script>
 <script type="text/javascript" src="<c:url value='/scripts/jquery/js/jquery.breadcrumbs.popup.js'/>"></script>
 
 
@@ -56,20 +55,20 @@
     <li>
       <div class="breadcrumbsbubbleInfo">
         <div class="trigger">
-          <a href='<c:url value="/miso/project/${experiment.study.project.id}"/>'>${experiment.study.project.name}</a>
+          <a href='<c:url value="/miso/project/${experiment.study.project.id}"/>'>${experiment.study.project.alias}</a>
         </div>
         <div class="breadcrumbspopup">
-            ${experiment.study.project.alias}
+            ${experiment.study.project.name}
         </div>
       </div>
     </li>
     <li>
       <div class="breadcrumbsbubbleInfo">
         <div class="trigger">
-          <a href='<c:url value="/miso/study/${experiment.study.id}"/>'>${experiment.study.name}</a>
+          <a href='<c:url value="/miso/study/${experiment.study.id}"/>'>${experiment.study.alias}</a>
         </div>
         <div class="breadcrumbspopup">
-            ${experiment.study.alias}
+            ${experiment.study.name}
         </div>
       </div>
     </li>
@@ -142,7 +141,7 @@
       <td>Platform:</td>
       <td>
         <form:select id="platforms" path="platform" items="${platforms}" itemLabel="nameAndModel"
-                     itemValue="platformId"
+                     itemValue="id"
                      onchange="Experiment.pool.loadPoolsByPlatform(this);"/>
       </td>
     </c:when>

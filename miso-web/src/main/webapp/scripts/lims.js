@@ -110,24 +110,30 @@ Utils.ui = {
 
   checkAll: function (field) {
     var self = this;
-    for (i = 0; i < self._N(field).length; i++) self._N(field)[i].checked = true;
+    for (var i = 0; i < self._N(field).length; i++) {
+      self._N(field)[i].checked = true;
+    }
   },
 
   checkAllConfirm: function (field, message) {
     if (confirm(message)) {
       var self = this;
-      for (i = 0; i < self._N(field).length; i++) self._N(field)[i].checked = true;
+      for (var i = 0; i < self._N(field).length; i++) {
+        self._N(field)[i].checked = true;
+      }
     }
   },
 
   uncheckAll: function (field) {
     var self = this;
-    for (i = 0; i < self._N(field).length; i++) self._N(field)[i].checked = false;
+    for (var i = 0; i < self._N(field).length; i++) {
+      self._N(field)[i].checked = false;
+    }
   },
 
   uncheckOthers: function (field, item) {
     var self = this;
-    for (i = 0; i < self._N(field).length; i++) {
+    for (var i = 0; i < self._N(field).length; i++) {
       if (self._N(field)[i] != item) {
         self._N(field)[i].checked = false;
       }
@@ -135,7 +141,9 @@ Utils.ui = {
   },
 
   _N: function (element) {
-    if (typeof element == 'string') element = document.getElementsByName(element);
+    if (typeof element == 'string') {
+      element = document.getElementsByName(element);
+    }
     return Element.extend(element);
   },
 
@@ -165,6 +173,15 @@ Utils.ui = {
 
   addMaxDatePicker: function (id, maxDateOffset) {
     jQuery("#" + id).datepicker({dateFormat: 'dd/mm/yy', showButtonPanel: true, maxDate: maxDateOffset});
+  },
+  
+  addDateTimePicker: function (id) {
+    jQuery("#" + id).datetimepicker({
+      controlType: 'select',
+      oneLine: true,
+      dateFormat: 'dd/mm/yy',
+      timeFormat: 'HH:mm'
+    });
   },
 
   disableButton: function (buttonDiv) {
@@ -197,8 +214,6 @@ Utils.ui = {
 
 Utils.fileUpload = {
   fileUploadProgress: function (formname, divname, successfunc) {
-    var self = this;
-
     Fluxion.doAjaxUpload(
       formname,
       'fileUploadProgressBean',
@@ -215,10 +230,9 @@ Utils.fileUpload = {
 };
 
 Utils.validation = {
-  //dateRegex: '^(?:(?:31(\/|-|\.)(?:0?[13578]|1[02]))\1|(?:(?:29|30)(\/|-|\.)(?:0?[1,3-9]|1[0-2])\2))(?:(?:1[6-9]|[2-9]\d)?\d{2})$|^(?:29(\/|-|\.)0?2\3(?:(?:(?:1[6-9]|[2-9]\d)?(?:0[48]|[2468][048]|[13579][26])|(?:(?:16|[2468][048]|[3579][26])00))))$|^(?:0?[1-9]|1\d|2[0-8])(\/|-|\.)(?:(?:0?[1-9])|(?:1[0-2]))\4(?:(?:1[6-9]|[2-9]\d)?\d{2})$',
-  dateRegex: '[0-9]{2}\/[0-9]{2}/[0-9]{4}',
-  sanitizeRegex: '[^<>\'\/]+',
-  //_base64 : XRegExp('^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})$'),
+  dateRegex: '^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/(19|20)[0-9]{2}$',
+  dateTimeRegex: '^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/(19|20)[0-9]{2} ([01][0-9]|2[0-3]):[0-5][0-9]$',
+  sanitizeRegex: '[^<>\'\"\/&]+',
   unicodeWordRegex: '^[\\p{L}0-9_\\^\\-\\.\\s]+$',
   _unicodeWord: XRegExp('^[\\p{L}0-9_\\^\\-\\.\\s]+$'),
 
@@ -239,143 +253,10 @@ Utils.validation = {
     return {"okstatus": okstatus, "errormsg": errormsg};
   },
 
-  base64Check: function (str) {
-    var base64 = new RegExp('^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})$');
-    if (base64.test(str)) {
-      return Utils.codec.base64_decode(str);
-    }
-    else {
-      return str;
-    }
-  },
-
   // Clean input fields by removing leading and trailing whitespace
   clean_input_field: function (field) {
     var oldval = field.val();
     field.val(oldval.trim(oldval));
-  }
-};
-
-Utils.codec = {
-  // private property
-  _keyStr: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
-
-  // public method for encoding
-  base64_encode: function (input) {
-    var self = this;
-    var output = "";
-    var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
-    var i = 0;
-
-    input = self._utf8_encode(input);
-
-    while (i < input.length) {
-      chr1 = input.charCodeAt(i++);
-      chr2 = input.charCodeAt(i++);
-      chr3 = input.charCodeAt(i++);
-
-      enc1 = chr1 >> 2;
-      enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
-      enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
-      enc4 = chr3 & 63;
-
-      if (isNaN(chr2)) {
-        enc3 = enc4 = 64;
-      }
-      else if (isNaN(chr3)) {
-        enc4 = 64;
-      }
-
-      output = output +
-               self._keyStr.charAt(enc1) + self._keyStr.charAt(enc2) +
-               self._keyStr.charAt(enc3) + self._keyStr.charAt(enc4);
-    }
-    return output;
-  },
-
-  // public method for decoding
-  base64_decode: function (input) {
-    var self = this;
-    var output = "";
-    var chr1, chr2, chr3;
-    var enc1, enc2, enc3, enc4;
-    var i = 0;
-
-    input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
-
-    while (i < input.length) {
-
-      enc1 = self._keyStr.indexOf(input.charAt(i++));
-      enc2 = self._keyStr.indexOf(input.charAt(i++));
-      enc3 = self._keyStr.indexOf(input.charAt(i++));
-      enc4 = self._keyStr.indexOf(input.charAt(i++));
-
-      chr1 = (enc1 << 2) | (enc2 >> 4);
-      chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
-      chr3 = ((enc3 & 3) << 6) | enc4;
-
-      output = output + String.fromCharCode(chr1);
-
-      if (enc3 != 64) {
-        output = output + String.fromCharCode(chr2);
-      }
-      if (enc4 != 64) {
-        output = output + String.fromCharCode(chr3);
-      }
-    }
-    output = self._utf8_decode(output);
-    return output;
-  },
-
-  // private method for UTF-8 encoding
-  _utf8_encode: function (string) {
-    string = string.replace(/\r\n/g, "\n");
-    var utftext = "";
-
-    for (var n = 0; n < string.length; n++) {
-      var c = string.charCodeAt(n);
-      if (c < 128) {
-        utftext += String.fromCharCode(c);
-      }
-      else if ((c > 127) && (c < 2048)) {
-        utftext += String.fromCharCode((c >> 6) | 192);
-        utftext += String.fromCharCode((c & 63) | 128);
-      }
-      else {
-        utftext += String.fromCharCode((c >> 12) | 224);
-        utftext += String.fromCharCode(((c >> 6) & 63) | 128);
-        utftext += String.fromCharCode((c & 63) | 128);
-      }
-    }
-
-    return utftext;
-  },
-
-  // private method for UTF-8 decoding
-  _utf8_decode: function (utftext) {
-    var string = "";
-    var i = 0;
-    var c = c1 = c2 = 0;
-
-    while (i < utftext.length) {
-      c = utftext.charCodeAt(i);
-      if (c < 128) {
-        string += String.fromCharCode(c);
-        i++;
-      }
-      else if ((c > 191) && (c < 224)) {
-        c2 = utftext.charCodeAt(i + 1);
-        string += String.fromCharCode(((c & 31) << 6) | (c2 & 63));
-        i += 2;
-      }
-      else {
-        c2 = utftext.charCodeAt(i + 1);
-        c3 = utftext.charCodeAt(i + 2);
-        string += String.fromCharCode(((c & 15) << 12) | ((c2 & 63) << 6) | (c3 & 63));
-        i += 3;
-      }
-    }
-    return string;
   }
 };
 
@@ -387,7 +268,7 @@ Utils.page = {
   newWindow: function (url) {
     newwindow = window.open(url, 'name', 'height=500,width=500,menubar=yes,status=yes,scrollbars=yes');
     if (window.focus) {
-      newwindow.focus()
+      newwindow.focus();
     }
     return false;
   },
@@ -475,7 +356,7 @@ Utils.alert = {
         'dashboard',
         'setAllAlertsAsRead',
         {'url': ajaxurl},
-        {'doOnSuccess': function (json) {
+        {'doOnSuccess': function () {
           jQuery('#alertList').html("<i style='color: gray'>No unread alerts</i>");
           Utils.alert.checkAlerts();
         }

@@ -21,6 +21,9 @@
  * *********************************************************************
  */
 
+// these variables are set on the editProject page if the project has samples/libraries
+var projectId_sample, sampleQcTypesString, libraryQcTypesString, projectId_d3graph;
+
 var Project = Project || {
   validateProject: function () {
     Validate.cleanFields('#project-form');
@@ -56,7 +59,9 @@ var Project = Project || {
   validate_sample_qcs: function (json) {
     var ok = true;
     for (var i = 0; i < json.length; i++) {
-      if(!json[i].results.match(/[0-9\.]+/)) ok = false;
+      if(!json[i].results.match(/[0-9\.]+/)) {
+        ok = false;
+      }
     }
     return ok;
   },
@@ -64,7 +69,9 @@ var Project = Project || {
   validate_empcrs: function (json) {
     var ok = true;
     for (var i = 0; i < json.length; i++) {
-      if(!json[i].results.match(/[0-9\.]+/)) ok = false;
+      if(!json[i].results.match(/[0-9\.]+/)) {
+        ok = false;
+      }
     }
     return ok;
   },
@@ -72,7 +79,9 @@ var Project = Project || {
   validate_empcr_dilutions: function (json) {
     var ok = true;
     for (var i = 0; i < json.length; i++) {
-      if(!json[i].results.match(/[0-9\.]+/)) ok = false;
+      if(!json[i].results.match(/[0-9\.]+/)) {
+        ok = false;
+      }
     }
     return ok;
   }
@@ -87,9 +96,10 @@ Project.ui = {
         'projectId': projectId,
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        jQuery('#pro' + projectId + 'traf').html(json.html);
-      }
+      {
+        'doOnSuccess': function (json) {
+          jQuery('#pro' + projectId + 'traf').html(json.html);
+        }
       }
     );
   },
@@ -102,11 +112,12 @@ Project.ui = {
       {
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        jQuery.each(json, function (i, val) {
-          jQuery('#pro' + i + 'overview').html(val)
-        });
-      }
+      {
+        'doOnSuccess': function (json) {
+          jQuery.each(json, function (i, val) {
+            jQuery('#pro' + i + 'overview').html(val);
+          });
+        }
       }
     );
   },
@@ -129,42 +140,43 @@ Project.ui = {
       {
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        jQuery('#listingProjectsTable').html('');
-        jQuery('#listingProjectsTable').dataTable({
-          "aaData": json.projectsArray,
-          "aoColumns": [
-            { "sTitle": "Project Name", "sType": "no-pro"},
-            { "sTitle": "Alias"},
-            { "sTitle": "Description"},
-            { "sTitle": "Progress"},
-            { "sTitle": "Overview"},
-            { "sTitle": "Edit"}
-          ],
-          "bJQueryUI": true,
-          "iDisplayLength": 25,
-          "aaSorting": [
-            [0, "desc"]
-          ],
-          "sDom": '<l<"#toolbar">f>r<t<"fg-toolbar ui-widget-header ui-corner-bl ui-corner-br ui-helper-clearfix"ip>',
-          "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
-            Fluxion.doAjax(
-              'projectControllerHelperService',
-              'checkOverviewByProjectId',
-              {
-                'projectId': aData[4],
-                'url': ajaxurl
-              },
-              {'doOnSuccess': function (json) {
-                jQuery('td:eq(4)', nRow).html(json.response);
-              }
-              }
-            );
-          }
-        });
-        jQuery("#toolbar").parent().addClass("fg-toolbar ui-toolbar ui-widget-header ui-corner-tl ui-corner-tr ui-helper-clearfix");
-        jQuery("#toolbar").append("<button style=\"margin-left:5px;\" onclick=\"window.location.href='/miso/project/new';\" class=\"fg-button ui-state-default ui-corner-all\">Add Project</button>");
-      }
+      {
+        'doOnSuccess': function (json) {
+          jQuery('#listingProjectsTable').html('');
+          jQuery('#listingProjectsTable').dataTable({
+            "aaData": json.projectsArray,
+            "aoColumns": [
+              { "sTitle": "Project Name", "sType": "no-pro"},
+              { "sTitle": "Alias"},
+              { "sTitle": "Description"},
+              { "sTitle": "Progress"},
+              { "sTitle": "Overview"}
+            ],
+            "bJQueryUI": true,
+            "iDisplayLength": 25,
+            "aaSorting": [
+              [0, "desc"]
+            ],
+            "sDom": '<l<"#toolbar">f>r<t<"fg-toolbar ui-widget-header ui-corner-bl ui-corner-br ui-helper-clearfix"ip>',
+            "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+              Fluxion.doAjax(
+                'projectControllerHelperService',
+                'checkOverviewByProjectId',
+                {
+                  'projectId': aData[4],
+                  'url': ajaxurl
+                },
+                {
+                  'doOnSuccess': function (json) {
+                    jQuery('td:eq(4)', nRow).html(json.response);
+                  }
+                }
+              );
+            }
+          });
+          jQuery("#toolbar").parent().addClass("fg-toolbar ui-toolbar ui-widget-header ui-corner-tl ui-corner-tr ui-helper-clearfix");
+          jQuery("#toolbar").append("<button style=\"margin-left:5px;\" onclick=\"window.location.href='/miso/project/new';\" class=\"fg-button ui-state-default ui-corner-all\">Add Project</button>");
+        }
       }
     );
   },
@@ -188,9 +200,10 @@ Project.ui = {
         'samples': aReturn,
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        Utils.page.pageRedirect('/miso/download/project/' + projectId + '/' + json.response);
-      }
+      {
+        'doOnSuccess': function (json) {
+          Utils.page.pageRedirect('/miso/download/project/' + projectId + '/' + json.response);
+        }
       }
     );
   },
@@ -204,8 +217,14 @@ Project.ui = {
 	      Fluxion.doAjax(
 	        'projectControllerHelperService',
 	        'deleteProjectFile',
-	        {'id': projectId, 'hashcode': fileKey, 'url': ajaxurl},
-	        {'doOnSuccess': Utils.page.pageReload}
+	        {
+	          'id': projectId,
+	          'hashcode': fileKey,
+	          'url': ajaxurl
+	        },
+	        {
+	          'doOnSuccess': Utils.page.pageReload
+	        }
 	      );
 	    }
 	  },
@@ -231,9 +250,10 @@ Project.ui = {
         'documentFormat': documentFormat,
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        Utils.page.pageRedirect('/miso/download/project/' + projectId + '/' + json.response);
-      }
+      {
+        'doOnSuccess': function (json) {
+          Utils.page.pageRedirect('/miso/download/project/' + projectId + '/' + json.response);
+        }
       }
     );
   },
@@ -243,8 +263,12 @@ Project.ui = {
     Fluxion.doAjax(
       'projectControllerHelperService',
       'visualiseBulkSampleInputForm',
-      {'url': ajaxurl},
-      {'updateElement': 'inputform_statusdiv'}
+      {
+        'url': ajaxurl
+      },
+      {
+        'updateElement': 'inputform_statusdiv'
+      }
     );
   },
 
@@ -265,9 +289,10 @@ Project.ui = {
         'documentFormat': documentFormat,
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        Utils.page.pageRedirect('/miso/download/project/' + projectId + '/' + json.response);
-      }
+      {
+        'doOnSuccess': function (json) {
+          Utils.page.pageRedirect('/miso/download/project/' + projectId + '/' + json.response);
+        }
       }
     );
   },
@@ -288,10 +313,11 @@ Project.ui = {
   processPlateUpload: function (frameId) {
     var iframe = document.getElementById(frameId);
     var iframedoc = iframe.document;
-    if (iframe.contentDocument)
+    if (iframe.contentDocument) {
       iframedoc = iframe.contentDocument;
-    else if (iframe.contentWindow)
+    } else if (iframe.contentWindow) {
       iframedoc = iframe.contentWindow.document;
+    }
     var response = jQuery(iframedoc).contents().find('body:first').find('#uploadresponsebody').val();
     if (!Utils.validation.isNullCheck(response)) {
       var json = jQuery.parseJSON(response);
@@ -311,7 +337,7 @@ Project.ui = {
               impb.append("<ul>");
               for (var k = 0; k < plate.elements.length; k++) {
                 var library = plate.elements[k];
-                impb.append("<li>" + library.alias + "</li>")
+                impb.append("<li>" + library.alias + "</li>");
               }
               impb.append("</ul>");
             }
@@ -319,10 +345,9 @@ Project.ui = {
           });
         }
       }
-    }
-    else {
+    } else {
       setTimeout(function () {
-        Project.ui.processPlateUpload(frameId)
+        Project.ui.processPlateUpload(frameId);
       }, 2000);
     }
   },
@@ -336,10 +361,11 @@ Project.ui = {
   saveImportedElements: function (frameId) {
     var iframe = document.getElementById(frameId);
     var iframedoc = iframe.document;
-    if (iframe.contentDocument)
+    if (iframe.contentDocument) {
       iframedoc = iframe.contentDocument;
-    else if (iframe.contentWindow)
+    } else if (iframe.contentWindow) {
       iframedoc = iframe.contentWindow.document;
+    }
     var response = jQuery(iframedoc).contents().find('body:first').find('#uploadresponsebody').val();
     if (!Utils.validation.isNullCheck(response)) {
       var json = jQuery.parseJSON(response);
@@ -375,25 +401,25 @@ Project.ui = {
       {
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        jQuery('#plateElementsTable').html('');
-        jQuery('#plateElementsTable').dataTable({
-          "aaData": json.elementsArray,
-          "aoColumns": [
-            { "sTitle": "Name", "sType": "no-pla"},
-            { "sTitle": "Alias"},
-            { "sTitle": "Description"},
-            { "sTitle": "Edit"}
-          ],
-          "bJQueryUI": true,
-          "iDisplayLength": 25,
-          "aaSorting": [
-            [0, "desc"]
-          ],
-          "sDom": '<l<"#toolbar">f>r<t<"fg-toolbar ui-widget-header ui-corner-bl ui-corner-br ui-helper-clearfix"ip>'
-        });
-        jQuery("#toolbar").parent().addClass("fg-toolbar ui-toolbar ui-widget-header ui-corner-tl ui-corner-tr ui-helper-clearfix");
-      }
+      {
+        'doOnSuccess': function (json) {
+          jQuery('#plateElementsTable').html('');
+          jQuery('#plateElementsTable').dataTable({
+            "aaData": json.elementsArray,
+            "aoColumns": [
+              { "sTitle": "Name", "sType": "no-pla"},
+              { "sTitle": "Alias"},
+              { "sTitle": "Description"}
+            ],
+            "bJQueryUI": true,
+            "iDisplayLength": 25,
+            "aaSorting": [
+              [0, "desc"]
+            ],
+            "sDom": '<l<"#toolbar">f>r<t<"fg-toolbar ui-widget-header ui-corner-bl ui-corner-br ui-helper-clearfix"ip>'
+          });
+          jQuery("#toolbar").parent().addClass("fg-toolbar ui-toolbar ui-widget-header ui-corner-tl ui-corner-tr ui-helper-clearfix");
+        }
       }
     );
   },
@@ -417,8 +443,8 @@ Project.ui = {
         var at = jQuery(this).attr("name");
         obj[at] = jQuery(this).text();
       });
-      obj["qcCreator"] = jQuery('#currentUser').text();
-      obj["sampleId"] = obj["name"].substring(3);
+      obj.qcCreator = jQuery('#currentUser').text();
+      obj.sampleId = obj.name.substring(3);
       aReturn.push(obj);
     }
 
@@ -437,13 +463,11 @@ Project.ui = {
             }
           }
         );
-      }
-      else {
+      } else {
         alert("The results field can only contain integers or decimals.");
         Utils.ui.reenableButton('bulkSampleQcButton', "Save QCs");
       }
-    }
-    else {
+    } else {
       alert("You have not selected any QC rows to save!\nPlease click the Select column cells in the rows you wish to save.");
       Utils.ui.reenableButton('bulkSampleQcButton', "Save QCs");
     }
@@ -471,10 +495,10 @@ Project.ui = {
     if (json.errors) {
       var errors = json.errors;
       var errorStr = "";
-      for (var i = 0; i < errors.length; i++) {
-        errorStr += errors[i].error + "\n";
+      for (var j = 0; j < errors.length; j++) {
+        errorStr += errors[j].error + "\n";
         jQuery(tableName).find("tr:gt(0)").each(function () {
-          if (jQuery(this).attr("sampleId") === errors[i].sampleId) {
+          if (jQuery(this).attr("sampleId") === errors[j].sampleId) {
             jQuery(this).find("td").each(function () {
               jQuery(this).css('background', '#EE9966');
             });
@@ -482,8 +506,7 @@ Project.ui = {
         });
       }
       alert("There were errors in your bulk input. The green rows have been saved, please fix the red rows:\n\n" + errorStr);
-    }
-    else {
+    } else {
       Utils.timer.timedFunc(Utils.page.pageReload(), 1000);
     }
   },
@@ -502,8 +525,8 @@ Project.ui = {
         var at = jQuery(this).attr("name");
         obj[at] = jQuery(this).text();
       });
-      obj["pcrCreator"] = jQuery('#currentUser').text();
-      obj["dilutionId"] = obj["dilName"].substring(3);
+      obj.pcrCreator = jQuery('#currentUser').text();
+      obj.dilutionId = obj.dilName.substring(3);
       aReturn.push(obj);
     }
     if (aReturn.length > 0) {
@@ -519,13 +542,11 @@ Project.ui = {
             'doOnSuccess': self.processBulkEmPcrTable
           }
         );
-      }
-      else {
+      } else {
         alert("The results field can only contain integers or decimals.");
         Utils.ui.reenableButton('bulkEmPcrButton', "Save EmPCRs");
       }
-    }
-    else {
+    } else {
       alert("You have not selected any EmPCR rows to save!\nPlease click the Select column cells in the rows you wish to save.");
       Utils.ui.reenableButton('bulkEmPcrButton', "Save EmPCRs");
     }
@@ -554,10 +575,10 @@ Project.ui = {
     if (json.errors) {
       var errors = json.errors;
       var errorStr = "";
-      for (var i = 0; i < errors.length; i++) {
-        errorStr += errors[i].error + "\n";
+      for (var j = 0; j < errors.length; j++) {
+        errorStr += errors[j].error + "\n";
         jQuery('#librarydils_table').find("tr:gt(0)").each(function () {
-          if (jQuery(this).attr("dilutionId") === errors[i].dilutionId) {
+          if (jQuery(this).attr("dilutionId") === errors[j].dilutionId) {
             jQuery(this).find("td").each(function () {
               jQuery(this).css('background', '#EE9966');
             });
@@ -565,8 +586,7 @@ Project.ui = {
         });
       }
       alert("There were errors in your bulk input. The green rows have been saved, please fix the red rows:\n\n" + errorStr);
-    }
-    else {
+    } else {
       Utils.timer.timedFunc(Utils.page.pageReload(), 1000);
     }
   },
@@ -585,8 +605,8 @@ Project.ui = {
         var at = jQuery(this).attr("name");
         obj[at] = jQuery(this).text();
       });
-      obj["pcrDilutionCreator"] = jQuery('#currentUser').text();
-      obj["pcrId"] = obj["pcrName"].substring(3);
+      obj.pcrDilutionCreator= jQuery('#currentUser').text();
+      obj.pcrId= obj.pcrName.substring(3);
       aReturn.push(obj);
     }
 
@@ -601,14 +621,13 @@ Project.ui = {
           },
           {
             'doOnSuccess': self.processBulkEmPcrDilutionTable
-          });
-      }
-      else {
+          }
+        );
+      } else {
         alert("The results field can only contain integers or decimals.");
         Utils.ui.reenableButton('bulkEmPcrDilutionButton', "Save Dilutions");
       }
-    }
-    else {
+    } else {
       alert("You have not selected any EmPCR Dilution rows to save!\nPlease click the Select column cells in the rows you wish to save.");
       Utils.ui.reenableButton('bulkEmPcrDilutionButton', "Save Dilutions");
     }
@@ -637,10 +656,10 @@ Project.ui = {
     if (json.errors) {
       var errors = json.errors;
       var errorStr = "";
-      for (var i = 0; i < errors.length; i++) {
-        errorStr += errors[i].error + "\n";
+      for (var j = 0; j < errors.length; j++) {
+        errorStr += errors[j].error + "\n";
         jQuery('#empcrs_table').find("tr:gt(0)").each(function () {
-          if (jQuery(this).attr("pcrId") === errors[i].pcrId) {
+          if (jQuery(this).attr("pcrId") === errors[j].pcrId) {
             jQuery(this).find("td").each(function () {
               jQuery(this).css('background', '#EE9966');
             });
@@ -648,8 +667,7 @@ Project.ui = {
         });
       }
       alert("There were errors in your bulk input. The green rows have been saved, please fix the red rows:\n\n" + errorStr);
-    }
-    else {
+    } else {
       Utils.timer.timedFunc(Utils.page.pageReload(), 1000);
     }
   },
@@ -660,16 +678,14 @@ Project.ui = {
       jQuery(tableId).dataTable().fnDestroy();
       //bug fix to reset table width
       jQuery(tableId).removeAttr("style");
-
       jQuery(tableId).addClass("display");
 
       jQuery(tableId + ' tbody').find("tr").each(function () {
           // remove received samples
-          if (jQuery(this).find("td:eq(4)").html() == "") {
+          if (jQuery(this).find("td:eq(4)").html() === "") {
             jQuery(this).removeAttr("onmouseover").removeAttr("onmouseout");
             jQuery(this).find("td:eq(4)").remove();
-          }
-          else {
+          } else {
             jQuery(this).remove();
           }
       });
@@ -706,8 +722,7 @@ Project.ui = {
       jQuery(tableId).find('.rowSelect').click(function () {
         if (jQuery(this).parent().hasClass('row_selected')) {
           jQuery(this).parent().removeClass('row_selected');
-        }
-        else {
+        } else {
           jQuery(this).parent().addClass('row_selected');
         }
       });
@@ -731,14 +746,18 @@ Project.ui = {
         Fluxion.doAjax(
           'sampleControllerHelperService',
           'setSampleReceivedDateByBarcode',
-          {'samples': samples, 'url': ajaxurl},
-          {'doOnSuccess': function (json) {
-            alert(json.result);
-            Utils.page.pageReload();
+          {
+            'samples': samples,
+            'url': ajaxurl
+          },
+          {
+            'doOnSuccess': function (json) {
+              alert(json.result);
+              Utils.page.pageReload();
+            }
           }
-        });
-      }
-      else {
+        );
+      } else {
         alert("No samples selected");
       }
     }
@@ -837,8 +856,14 @@ Project.overview = {
       Fluxion.doAjax(
         'projectControllerHelperService',
         'deleteProjectOverviewNote',
-        {'overviewId': overviewId, 'noteId': noteId, 'url': ajaxurl},
-        {'doOnSuccess': Utils.page.pageReload}
+        {
+          'overviewId': overviewId,
+          'noteId': noteId,
+          'url': ajaxurl
+        },
+        {
+          'doOnSuccess': Utils.page.pageReload
+        }
       );
     }
   },
@@ -856,59 +881,60 @@ Project.overview = {
         'projectId': projectId,
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        jQuery(tableId).html('');
-
-        var oTable = jQuery(tableId).dataTable({
-          "aaData": json.array,
-          "aoColumns": [
-            { "mData":"id", "bVisible":"false"},
-            { "sTitle": "Sample Name", "mData":"name"},
-            { "sTitle": "Alias", "mData":"alias", "sType": "natural"},
-            { "sTitle": "Type", "mData":"type"},
-            { "sTitle": "Description", "mData":"description"}
-          ],
-          "aoColumnDefs": [
-            {
-              "bUseRendered": false,
-              "aTargets": [ 0 ]
+      {
+        'doOnSuccess': function (json) {
+          jQuery(tableId).html('');
+  
+          var oTable = jQuery(tableId).dataTable({
+            "aaData": json.array,
+            "aoColumns": [
+              { "mData":"id", "bVisible":"false"},
+              { "sTitle": "Sample Name", "mData":"name"},
+              { "sTitle": "Alias", "mData":"alias", "sType": "natural"},
+              { "sTitle": "Type", "mData":"type"},
+              { "sTitle": "Description", "mData":"description"}
+            ],
+            "aoColumnDefs": [
+              {
+                "bUseRendered": false,
+                "aTargets": [ 0 ]
+              }
+            ],
+            "aaSorting": [
+              [1, 'asc']
+            ],
+            "bPaginate": false,
+            "bInfo": false,
+            "bJQueryUI": true,
+            "bAutoWidth": true,
+            "bFilter": false,
+            "sDom": '<<"toolbar">f>r<t>ip>'
+          });
+  
+          //bug fix to reset table width
+          jQuery(tableId).removeAttr("style");
+  
+          jQuery(tableId).find("tr").each(function () {
+            jQuery(this).removeAttr("onmouseover").removeAttr("onmouseout");
+          });
+  
+          jQuery(tableId).find("tr:first").prepend("<th>Select <span sel='none' header='select' class='ui-icon ui-icon-arrowstop-1-s' style='float:right' onclick='DatatableUtils.toggleSelectAll(\"" + tableId + "\", this);'></span></th>");
+          jQuery(tableId).find("tr:gt(0)").prepend("<td class='rowSelect'></td>");
+  
+          jQuery(tableId).find('.rowSelect').click(function () {
+            if (jQuery(this).parent().hasClass('row_selected')) {
+              jQuery(this).parent().removeClass('row_selected');
+            } else {
+              jQuery(this).parent().addClass('row_selected');
             }
-          ],
-          "aaSorting": [
-            [1, 'asc']
-          ],
-          "bPaginate": false,
-          "bInfo": false,
-          "bJQueryUI": true,
-          "bAutoWidth": true,
-          "bFilter": false,
-          "sDom": '<<"toolbar">f>r<t>ip>'
-        });
-
-        //bug fix to reset table width
-        jQuery(tableId).removeAttr("style");
-
-        jQuery(tableId).find("tr").each(function () {
-          jQuery(this).removeAttr("onmouseover").removeAttr("onmouseout");
-        });
-
-        jQuery(tableId).find("tr:first").prepend("<th>Select <span sel='none' header='select' class='ui-icon ui-icon-arrowstop-1-s' style='float:right' onclick='DatatableUtils.toggleSelectAll(\"" + tableId + "\", this);'></span></th>");
-        jQuery(tableId).find("tr:gt(0)").prepend("<td class='rowSelect'></td>");
-
-        jQuery(tableId).find('.rowSelect').click(function () {
-          if (jQuery(this).parent().hasClass('row_selected')) {
-            jQuery(this).parent().removeClass('row_selected');
-          }
-          else {
-            jQuery(this).parent().addClass('row_selected');
-          }
-        });
-
-        jQuery("div.toolbar").html("<input type='button' value='Group Selected' onclick=\"Project.overview.addSampleGroup('"+overviewId+"', '" + tableId + "');\" class=\"fg-button ui-state-default ui-corner-all\"/>");
-        jQuery("div.toolbar").append("<input type='button' value='Cancel' onclick=\"Utils.page.pageReload();\" class=\"fg-button ui-state-default ui-corner-all\"/>");
-        jQuery("div.toolbar").removeClass("toolbar");
+          });
+  
+          jQuery("div.toolbar").html("<input type='button' value='Group Selected' onclick=\"Project.overview.addSampleGroup('"+overviewId+"', '" + tableId + "');\" class=\"fg-button ui-state-default ui-corner-all\"/>");
+          jQuery("div.toolbar").append("<input type='button' value='Cancel' onclick=\"Utils.page.pageReload();\" class=\"fg-button ui-state-default ui-corner-all\"/>");
+          jQuery("div.toolbar").removeClass("toolbar");
+        }
       }
-    });
+    );
   },
 
   addSampleGroup: function (overviewId, tableId) {
@@ -947,59 +973,60 @@ Project.overview = {
         'projectId': projectId,
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        jQuery(tableId).html('');
-
-        var oTable = jQuery(tableId).dataTable({
-          "aaData": json.array,
-          "aoColumns": [
-            { "mData":"id", "bVisible":"false"},
-            { "sTitle": "Sample Name", "mData":"name"},
-            { "sTitle": "Alias", "mData":"alias", "sType": "natural"},
-            { "sTitle": "Type", "mData":"type"},
-            { "sTitle": "Description", "mData":"description"}
-          ],
-          "aoColumnDefs": [
-            {
-              "bUseRendered": false,
-              "aTargets": [ 0 ]
+      {
+        'doOnSuccess': function (json) {
+          jQuery(tableId).html('');
+  
+          var oTable = jQuery(tableId).dataTable({
+            "aaData": json.array,
+            "aoColumns": [
+              { "mData":"id", "bVisible":"false"},
+              { "sTitle": "Sample Name", "mData":"name"},
+              { "sTitle": "Alias", "mData":"alias", "sType": "natural"},
+              { "sTitle": "Type", "mData":"type"},
+              { "sTitle": "Description", "mData":"description"}
+            ],
+            "aoColumnDefs": [
+              {
+                "bUseRendered": false,
+                "aTargets": [ 0 ]
+              }
+            ],
+            "aaSorting": [
+              [1, 'asc']
+            ],
+            "bPaginate": false,
+            "bInfo": false,
+            "bJQueryUI": true,
+            "bAutoWidth": true,
+            "bFilter": false,
+            "sDom": '<<"toolbar">f>r<t>ip>'
+          });
+  
+          //bug fix to reset table width
+          jQuery(tableId).removeAttr("style");
+  
+          jQuery(tableId).find("tr").each(function () {
+            jQuery(this).removeAttr("onmouseover").removeAttr("onmouseout");
+          });
+  
+          jQuery(tableId).find("tr:first").prepend("<th>Select <span sel='none' header='select' class='ui-icon ui-icon-arrowstop-1-s' style='float:right' onclick='DatatableUtils.toggleSelectAll(\"" + tableId + "\", this);'></span></th>");
+          jQuery(tableId).find("tr:gt(0)").prepend("<td class='rowSelect'></td>");
+  
+          jQuery(tableId).find('.rowSelect').click(function () {
+            if (jQuery(this).parent().hasClass('row_selected')) {
+              jQuery(this).parent().removeClass('row_selected');
+            } else {
+              jQuery(this).parent().addClass('row_selected');
             }
-          ],
-          "aaSorting": [
-            [1, 'asc']
-          ],
-          "bPaginate": false,
-          "bInfo": false,
-          "bJQueryUI": true,
-          "bAutoWidth": true,
-          "bFilter": false,
-          "sDom": '<<"toolbar">f>r<t>ip>'
-        });
-
-        //bug fix to reset table width
-        jQuery(tableId).removeAttr("style");
-
-        jQuery(tableId).find("tr").each(function () {
-          jQuery(this).removeAttr("onmouseover").removeAttr("onmouseout");
-        });
-
-        jQuery(tableId).find("tr:first").prepend("<th>Select <span sel='none' header='select' class='ui-icon ui-icon-arrowstop-1-s' style='float:right' onclick='DatatableUtils.toggleSelectAll(\"" + tableId + "\", this);'></span></th>");
-        jQuery(tableId).find("tr:gt(0)").prepend("<td class='rowSelect'></td>");
-
-        jQuery(tableId).find('.rowSelect').click(function () {
-          if (jQuery(this).parent().hasClass('row_selected')) {
-            jQuery(this).parent().removeClass('row_selected');
-          }
-          else {
-            jQuery(this).parent().addClass('row_selected');
-          }
-        });
-
-        jQuery("div.toolbar").html("<input type='button' value='Add Selected' onclick=\"Project.overview.addSamplesToGroup('"+overviewId+"', '" + tableId + "', '"+groupId+"');\" class=\"fg-button ui-state-default ui-corner-all\">Add Selected</input>");
-        jQuery("div.toolbar").append("<input type='button' value='Cancel' onclick=\"Utils.page.pageReload();\" class=\"fg-button ui-state-default ui-corner-all\">Cancel</input>");
-        jQuery("div.toolbar").removeClass("toolbar");
+          });
+  
+          jQuery("div.toolbar").html("<input type='button' value='Add Selected' onclick=\"Project.overview.addSamplesToGroup('"+overviewId+"', '" + tableId + "', '"+groupId+"');\" class=\"fg-button ui-state-default ui-corner-all\">Add Selected</input>");
+          jQuery("div.toolbar").append("<input type='button' value='Cancel' onclick=\"Utils.page.pageReload();\" class=\"fg-button ui-state-default ui-corner-all\">Cancel</input>");
+          jQuery("div.toolbar").removeClass("toolbar");
+        }
       }
-    });
+    );
   },
 
   addSamplesToGroup: function (overviewId, tableId, groupId) {
@@ -1082,15 +1109,14 @@ Project.issues = {
           'doOnSuccess': self.importIssue
         }
       );
-    }
-    else {
+    } else {
       alert("Please enter a valid Issue Key, e.g. FOO-1");
     }
   },
 
   importIssue: function (json) {
     if (json.invalidIssues === "undefined" ||
-        json.invalidIssues.length == 0 &&
+        json.invalidIssues.length === 0 &&
         json.validIssues !== "undefined" &&
         json.validIssues.length > 0) {
       var key = json.validIssues[0].key;
@@ -1135,8 +1161,7 @@ Project.issues = {
           'doOnSuccess': self.previewIssues
         }
       );
-    }
-    else {
+    } else {
       alert("Please enter a valid Issue Key, or list of keys, e.g. FOO-1,FOO-2,FOO-3");
     }
   },
@@ -1196,29 +1221,29 @@ Project.issues = {
         jQuery('#issuebox' + i).append("<b>Created:</b> " + issue.created + "<br/>");
         jQuery('#issuebox' + i).append("<b>Updated:</b> " + issue.updated + "<br/>");
 
-        if (issue["issuelinks"].length > 0) {
+        if (issue.issuelinks.length > 0) {
           jQuery('#issuebox' + i).append("<h4>Links</h4>");
-          for (var j = 0; j < issue["issuelinks"].length; j++) {
-            var link = issue["issuelinks"][j];
+          for (var j = 0; j < issue.issuelinks.length; j++) {
+            var link = issue.issuelinks[j];
             jQuery('#issuebox' + i).append(link.type.outward + " <a href='javascript:void(0);' onclick=\"Utils.page.newWindow('" + link.url + "');\">" + link.url + "</a><br/>");
           }
         }
 
         if (issue["sub-tasks"].value.length > 0) {
           jQuery('#issuebox' + i).append("<h4>Subtasks</h4>");
-          for (var j = 0; j < issue["subtasks"].length; j++) {
-            var subtask = issue["subtasks"][j];
+          for (var k = 0; k < issue.subtasks.length; k++) {
+            var subtask = issue.subtasks[k];
             jQuery('#issuebox' + i).append("<a href='javascript:void(0);' onclick=\"Utils.page.newWindow('" + subtask.url + "');\">" + subtask.url + "</a><br/>");
           }
         }
 
         jQuery('#issuebox' + i).append("<h4>Comments</h4>");
-        for (var k = 0; k < issue["comment"]["comments"].length; k++) {
-          var comment = issue["comment"]["comments"][k];
-          jQuery('#issuebox' + i).append("<div id='commentbox" + i + "_" + k + "' class='simplebox backwhite' onclick=\"Utils.page.newWindow('" + comment.url + "');\">");
-          jQuery('#commentbox' + i + "_" + k).append("<a href='javascript:void(0);' onclick=\"Utils.page.newWindow('" + comment.author.url + "');\">" + comment.author.displayName + "</a>");
-          jQuery('#commentbox' + i + "_" + k).append(" at " + comment.created + "<br/>");
-          jQuery('#commentbox' + i + "_" + k).append("<pre class='wrap'>" + comment.body + "</pre>");
+        for (var m = 0; m < issue.comment.comments.length; m++) {
+          var comment = issue.comment.comments[m];
+          jQuery('#issuebox' + i).append("<div id='commentbox" + i + "_" + m + "' class='simplebox backwhite' onclick=\"Utils.page.newWindow('" + comment.url + "');\">");
+          jQuery('#commentbox' + i + "_" + m).append("<a href='javascript:void(0);' onclick=\"Utils.page.newWindow('" + comment.author.url + "');\">" + comment.author.displayName + "</a>");
+          jQuery('#commentbox' + i + "_" + m).append(" at " + comment.created + "<br/>");
+          jQuery('#commentbox' + i + "_" + m).append("<pre class='wrap'>" + comment.body + "</pre>");
         }
 
         jQuery('#issuebox' + i).append("<input type='hidden' name='issueKeys' id='issueKeys" + i + "' value='" + key + "'" + "><hr/>");
@@ -1341,8 +1366,7 @@ Project.barcode = {
       jQuery(tableId).find('.rowSelect').click(function () {
         if (jQuery(this).parent().hasClass('row_selected')) {
           jQuery(this).parent().removeClass('row_selected');
-        }
-        else {
+        } else {
           jQuery(this).parent().addClass('row_selected');
         }
       });
@@ -1473,8 +1497,7 @@ Project.barcode = {
       jQuery(tableId).find('.rowSelect').click(function () {
         if (jQuery(this).parent().hasClass('row_selected')) {
           jQuery(this).parent().removeClass('row_selected');
-        }
-        else {
+        } else {
           jQuery(this).parent().addClass('row_selected');
         }
       });
@@ -1599,8 +1622,7 @@ Project.barcode = {
       jQuery(tableId).find('.rowSelect').click(function () {
         if (jQuery(this).parent().hasClass('row_selected')) {
           jQuery(this).parent().removeClass('row_selected');
-        }
-        else {
+        } else {
           jQuery(this).parent().addClass('row_selected');
         }
       });
@@ -1680,9 +1702,10 @@ Project.alert = {
         'overviewId': overviewId,
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        Utils.page.pageReload();
-      }
+      {
+        'doOnSuccess': function () {
+          Utils.page.pageReload();
+        }
       }
     );
   },
@@ -1695,9 +1718,10 @@ Project.alert = {
         'overviewId': overviewId,
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        Utils.page.pageReload();
-      }
+      {
+        'doOnSuccess': function () {
+          Utils.page.pageReload();
+        }
       }
     );
   },
@@ -1710,9 +1734,10 @@ Project.alert = {
         'overviewId': overviewId,
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        jQuery('#watchersList' + overviewId).html(json.watchers);
-      }
+      {
+        'doOnSuccess': function (json) {
+          jQuery('#watchersList' + overviewId).html(json.watchers);
+        }
       }
     );
   }

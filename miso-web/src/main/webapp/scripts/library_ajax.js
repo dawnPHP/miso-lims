@@ -22,16 +22,21 @@
  */
 
 var Library = Library || {
-  deleteLibrary: function (libraryId, successfunc) {
+  deleteLibrary: function (libraryId) {
     if (confirm("Are you sure you really want to delete LIB" + libraryId + "? This operation is permanent!")) {
       Fluxion.doAjax(
         'libraryControllerHelperService',
         'deleteLibrary',
-        {'libraryId': libraryId, 'url': ajaxurl},
-        {'doOnSuccess': function (json) {
-          successfunc();
+        {
+          'libraryId': libraryId,
+          'url': ajaxurl
+        },
+        {
+          'doOnSuccess': function () {
+            window.location.href = '/miso/libraries';
+          }
         }
-        });
+      );
     }
   },
   
@@ -50,6 +55,16 @@ var Library = Library || {
     jQuery('#description').attr('data-parsley-required', 'true');
     jQuery('#description').attr('data-parsley-maxlength', '100');
     jQuery('#description').attr('data-parsley-pattern', Utils.validation.sanitizeRegex);
+    
+    // Volume validation
+    jQuery('#volume').attr('class', 'form-control');
+    jQuery('#volume').attr('data-parsley-required', 'true');
+    jQuery('#volume').attr('data-parsley-maxlength', '10');
+    jQuery('#volume').attr('data-parsley-type', 'number');
+
+    // Prep Kit validation
+    jQuery('#libraryKit').attr('class', 'form-control');
+    jQuery('#libraryKit').attr('data-parsley-required', 'true');
 
     Fluxion.doAjax(
       'libraryControllerHelperService',
@@ -66,7 +81,7 @@ var Library = Library || {
           jQuery('#alias').attr('data-parsley-error-message', 'Must match '+regex);
           jQuery('#library-form').parsley();
           jQuery('#library-form').parsley().validate();
-          Validate.updateWarningOrSubmit('#library-form', Library.validateLibraryAlias);
+          Validate.updateWarningOrSubmit('#library-form', Library.validateLibraryExtra);
           return false;
         },
         'doOnError': function(json) {
@@ -75,8 +90,8 @@ var Library = Library || {
       }
     );
   },
-  
-  validateLibraryAlias: function () {
+
+  validateLibraryExtra: function () {
     Fluxion.doAjax(
       'libraryControllerHelperService',
       'validateLibraryAlias',
@@ -98,48 +113,29 @@ var Library = Library || {
   }
 };
 
-Library.tagbarcode = {
-  populateAvailableBarcodesForStrategy: function (input) {
-    var self = this;
-    var strategy = jQuery(input).val();
-    if (!Utils.validation.isNullCheck(strategy)) {
-      Fluxion.doAjax(
-        'libraryControllerHelperService',
-        'getTagBarcodesForStrategy',
-        {'strategy': strategy, 'url': ajaxurl},
-        {'doOnSuccess': self.processTagBarcodeStrategyChange}
-      );
-    }
-  },
-
-  processTagBarcodeStrategyChange: function (json) {
-    jQuery('#tagBarcodesDiv').html(json.tagBarcodes);
-  }
-};
-
 Library.qc = {
   insertLibraryQCRow: function (libraryId, includeId) {
     if (!jQuery('#libraryQcTable').attr("qcInProgress")) {
       jQuery('#libraryQcTable').attr("qcInProgress", "true");
 
-      $('libraryQcTable').insertRow(1);
+      jQuery('#libraryQcTable')[0].insertRow(1);
       //QCId  QCed By  	QC Date  	Method  	Results
 
       if (includeId) {
-        var column1 = $('libraryQcTable').rows[1].insertCell(-1);
+        var column1 = jQuery('#libraryQcTable')[0].rows[1].insertCell(-1);
         column1.innerHTML = "<input type='hidden' id='libraryId' name='libraryId' value='" + libraryId + "'/>";
       }
-      var column2 = $('libraryQcTable').rows[1].insertCell(-1);
-      column2.innerHTML = "<input id='libraryQcUser' name='libraryQcUser' type='hidden' value='" + $('currentUser').innerHTML + "'/>" + $('currentUser').innerHTML;
-      var column3 = $('libraryQcTable').rows[1].insertCell(-1);
+      var column2 = jQuery('#libraryQcTable')[0].rows[1].insertCell(-1);
+      column2.innerHTML = "<input id='libraryQcUser' name='libraryQcUser' type='hidden' value='" + jQuery('#currentUser')[0].innerHTML + "'/>" + jQuery('#currentUser')[0].innerHTML;
+      var column3 = jQuery('#libraryQcTable')[0].rows[1].insertCell(-1);
       column3.innerHTML = "<input id='libraryQcDate' name='libraryQcDate' type='text'/>";
-      var column4 = $('libraryQcTable').rows[1].insertCell(-1);
+      var column4 = jQuery('#libraryQcTable')[0].rows[1].insertCell(-1);
       column4.innerHTML = "<select id='libraryQcType' name='libraryQcType' onchange='Library.qc.changeLibraryQcUnits(this);'/>";
-      var column5 = $('libraryQcTable').rows[1].insertCell(-1);
+      var column5 = jQuery('#libraryQcTable')[0].rows[1].insertCell(-1);
       column5.innerHTML = "<input id='libraryQcResults' name='libraryQcResults' type='text'/><span id='units'/>";
-      var column6 = $('libraryQcTable').rows[1].insertCell(-1);
+      var column6 = jQuery('#libraryQcTable')[0].rows[1].insertCell(-1);
       column6.innerHTML = "<input id='libraryQcInsertSize' name='libraryQcInsertSize' type='text'/> bp";
-      var column7 = $('libraryQcTable').rows[1].insertCell(-1);
+      var column7 = jQuery('#libraryQcTable')[0].rows[1].insertCell(-1);
       column7.innerHTML = "<a href='javascript:void(0);' onclick='Library.qc.addLibraryQC();'/>Add</a>";
 
       Utils.ui.addMaxDatePicker("libraryQcDate", 0);
@@ -147,20 +143,23 @@ Library.qc = {
       Fluxion.doAjax(
         'libraryControllerHelperService',
         'getLibraryQcTypes',
-        {'url': ajaxurl},
-        {'doOnSuccess': function (json) {
-          jQuery('#libraryQcType').html(json.types);
-          jQuery('#units').html(jQuery('#libraryQcType option:first').attr("units"));
-        }
+        {
+          'url': ajaxurl
+        },
+        {
+          'doOnSuccess': function (json) {
+            jQuery('#libraryQcType').html(json.types);
+            jQuery('#units').html(jQuery('#libraryQcType option:first').attr("units"));
+          }
         }
       );
     }
     else {
-      alert("Cannot add another QC when one is already in progress.")
+      alert("Cannot add another QC when one is already in progress.");
     }
   },
 
-  changeLibraryQcUnits: function (input) {
+  changeLibraryQcUnits: function () {
     jQuery('#units').html(jQuery('#libraryQcType').find(":selected").attr("units"));
   },
 
@@ -178,11 +177,13 @@ Library.qc = {
         'insertSize': f.libraryQcInsertSize,
         'url': ajaxurl
       },
-      {'updateElement': 'libraryQcTable',
-      'doOnSuccess': function (json) {
-        jQuery('#libraryQcTable').removeAttr("qcInProgress");
+      {
+        'updateElement': 'libraryQcTable',
+        'doOnSuccess': function () {
+          jQuery('#libraryQcTable').removeAttr("qcInProgress");
+        }
       }
-    });
+    );
   },
 
   changeLibraryQCRow: function (qcId, libraryId) {
@@ -194,12 +195,14 @@ Library.qc = {
         'qcId': qcId,
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        jQuery('#result' + qcId).html(json.results);
-        jQuery('#insert' + qcId).html(json.insertSize);
-        jQuery('#edit' + qcId).html(json.edit);
+      {
+        'doOnSuccess': function (json) {
+          jQuery('#result' + qcId).html(json.results);
+          jQuery('#insert' + qcId).html(json.insertSize);
+          jQuery('#edit' + qcId).html(json.edit);
+        }
       }
-    });
+    );
   },
 
   editLibraryQC: function (qcId, libraryId) {
@@ -213,40 +216,78 @@ Library.qc = {
         'insertSize': jQuery('#insertSize' + qcId).val(),
         'url': ajaxurl
       },
-      {'doOnSuccess': Utils.page.pageReload
+      {
+        'doOnSuccess': Utils.page.pageReload
       }
     );
   }
 };
 
 Library.dilution = {
-  insertLibraryDilutionRow: function (libraryId) {
+  insertLibraryDilutionRow: function (libraryId, libraryPrepKitId) {
     if (!jQuery('#libraryDilutionTable').attr("dilutionInProgress")) {
       jQuery('#libraryDilutionTable').attr("dilutionInProgress", "true");
 
-      $('libraryDilutionTable').insertRow(1);
+      jQuery('#libraryDilutionTable')[0].insertRow(1);
       //dilutionId    Done By   Dilution Date Barcode Results
-      var column1 = $('libraryDilutionTable').rows[1].insertCell(-1);
+      var column1 = jQuery('#libraryDilutionTable')[0].rows[1].insertCell(-1);
       column1.innerHTML = "<input id='name' name='name' type='hidden' value='Unsaved '/>Unsaved";
-      var column2 = $('libraryDilutionTable').rows[1].insertCell(-1);
-      column2.innerHTML = "<input id='libraryDilutionCreator' name='libraryDilutionCreator' type='hidden' value='" + $('currentUser').innerHTML + "'/>" + $('currentUser').innerHTML;
-      var column3 = $('libraryDilutionTable').rows[1].insertCell(-1);
+      var column2 = jQuery('#libraryDilutionTable')[0].rows[1].insertCell(-1);
+      column2.innerHTML = "<input id='libraryDilutionCreator' name='libraryDilutionCreator' type='hidden' value='" + jQuery('#currentUser')[0].innerHTML + "'/>" + jQuery('#currentUser')[0].innerHTML;
+      var column3 = jQuery('#libraryDilutionTable')[0].rows[1].insertCell(-1);
       column3.innerHTML = "<input id='libraryDilutionDate' name='libraryDilutionDate' type='text'/>";
-      var column6 = $('libraryDilutionTable').rows[1].insertCell(-1);
+      var column6 = jQuery('#libraryDilutionTable')[0].rows[1].insertCell(-1);
       column6.innerHTML = "<input id='libraryDilutionResults' name='libraryDilutionResults' type='text'/>";
-      var column7 = $('libraryDilutionTable').rows[1].insertCell(-1);
-      column7.innerHTML = "<i>Generated on save</i>";
-      var column8 = $('libraryDilutionTable').rows[1].insertCell(-1);
-      column8.innerHTML = "<a href='javascript:void(0);' onclick='Library.dilution.addLibraryDilution();'/>Add</a>";
+      var column7 = jQuery('#libraryDilutionTable')[0].rows[1].insertCell(-1);
+      column7.innerHTML = "<select id='libraryDilutionTargetedResequencing' name='libraryDilutionTargetedResequencing' onchange='Library.qc.changeLibraryQcUnits(this);'/>"
+      var column8 = jQuery('#libraryDilutionTable')[0].rows[1].insertCell(-1);
+      column8.innerHTML = "<i>Generated on save</i>";
+      var column9 = jQuery('#libraryDilutionTable')[0].rows[1].insertCell(-1);
+      column9.innerHTML = "<a href='javascript:void(0);' onclick='Library.dilution.addLibraryDilution();'/>Add</a>";
 
       Utils.ui.addMaxDatePicker("libraryDilutionDate", 0);
-    }
-    else {
-      alert("Cannot add another dilution when one is already in progress.")
+      
+      Fluxion.doAjax(
+        'libraryControllerHelperService',
+        'getTargetedResequencingTypes',
+        {
+          'url': ajaxurl,
+          'libraryPrepKitId': libraryPrepKitId
+        },
+        {
+          'doOnSuccess': function (json) {
+	        	var selectElem = jQuery('#libraryDilutionTargetedResequencing');
+	        	if (json.targetedResequencings.length == 0) {
+	        		selectElem.append(new Option('NONE', 0));
+	        	} else {
+	        		selectElem.append(new Option('--- select'));
+	        		selectElem.append(new Option('NONE', 0));
+              json.targetedResequencings.sort(function(a, b) {
+                 return (a.alias > b.alias) - (a.alias < b.alias);
+              });
+            	jQuery.each(json.targetedResequencings, function(index, item) {
+            		selectElem.append(new Option(item.alias, item.targetedSequencingId));
+            	});
+	        	}
+          }
+        }
+      );
+    } else {
+      alert("Cannot add another dilution when one is already in progress.");
     }
   },
 
   addLibraryDilution: function () {
+	  
+   jQuery('#libraryDilutionTargetedResequencing').attr('class', 'form-control');
+   jQuery('#libraryDilutionTargetedResequencing').attr('data-parsley-required', 'true');
+   jQuery('#libraryDilutionTargetedResequencing').attr('data-parsley-type', 'number');  
+   
+   jQuery('#addDilutionForm').parsley();
+   if (!jQuery('#addDilutionForm').parsley().validate()) {
+	   return;
+   }
+	  
     var f = Utils.mappifyForm("addDilutionForm");
     Fluxion.doAjax(
       'libraryControllerHelperService',
@@ -257,9 +298,11 @@ Library.dilution = {
         'dilutionDate': f.libraryDilutionDate,
         //'locationBarcode':f.libraryDilutionBarcode.value,
         'results': f.libraryDilutionResults,
+        'libraryDilutionTargetedResequencing': f.libraryDilutionTargetedResequencing,
         'url': ajaxurl},
-      {'updateElement': 'libraryDilutionTable',
-        'doOnSuccess': function (json) {
+      {
+        'updateElement': 'libraryDilutionTable',
+        'doOnSuccess': function () {
           jQuery('#libraryDilutionTable').removeAttr("dilutionInProgress");
         }
       }
@@ -274,10 +317,11 @@ Library.dilution = {
         'dilutionId': dilutionId,
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        jQuery('#results' + dilutionId).html(json.results);
-        jQuery('#edit' + dilutionId).html(json.edit);
-      }
+      {
+        'doOnSuccess': function (json) {
+          jQuery('#results' + dilutionId).html(json.results);
+          jQuery('#edit' + dilutionId).html(json.edit);
+        }
       }
     );
   },
@@ -291,21 +335,25 @@ Library.dilution = {
         'result': jQuery('#' + dilutionId).val(),
         'url': ajaxurl
       },
-      {'doOnSuccess': Utils.page.pageReload
+      {
+        'doOnSuccess': Utils.page.pageReload
       }
     );
   },
 
-  deleteLibraryDilution: function (libraryDilutionId, successfunc) {
+  deleteLibraryDilution: function (libraryDilutionId) {
     if (confirm("Are you sure you really want to delete LDI" + libraryDilutionId + "? This operation is permanent!")) {
       Fluxion.doAjax(
         'libraryControllerHelperService',
         'deleteLibraryDilution',
-        {'libraryDilutionId': libraryDilutionId, 'url': ajaxurl},
-        {'doOnSuccess': function (json) {
-          successfunc();
+        {
+          'libraryDilutionId': libraryDilutionId,
+          'url': ajaxurl
+        },
+        {
+          'doOnSuccess': window.location.reload(true)
         }
-      });
+      );
     }
   }
 };
@@ -315,23 +363,23 @@ Library.empcr = {
     if (!jQuery('#emPcrTable').attr("pcrInProgress")) {
       jQuery('#emPcrTable').attr("pcrInProgress", "true");
 
-      $('emPcrTable').insertRow(1);
+      jQuery('#emPcrTable')[0].insertRow(1);
 
-      var column2 = $('emPcrTable').rows[1].insertCell(-1);
+      var column2 = jQuery('#emPcrTable')[0].rows[1].insertCell(-1);
       column2.innerHTML = "" + dilutionId + " <input type='hidden' id='dilutionId' name='dilutionId' value='" + dilutionId + "'/>";
-      var column3 = $('emPcrTable').rows[1].insertCell(-1);
-      column3.innerHTML = "<input id='emPcrCreator' name='emPcrCreator' type='hidden' value='" + $('currentUser').innerHTML + "'/>" + $('currentUser').innerHTML;
-      var column4 = $('emPcrTable').rows[1].insertCell(-1);
+      var column3 = jQuery('#emPcrTable')[0].rows[1].insertCell(-1);
+      column3.innerHTML = "<input id='emPcrCreator' name='emPcrCreator' type='hidden' value='" + jQuery('#currentUser')[0].innerHTML + "'/>" + jQuery('#currentUser')[0].innerHTML;
+      var column4 = jQuery('#emPcrTable')[0].rows[1].insertCell(-1);
       column4.innerHTML = "<input id='emPcrDate' name='emPcrDate' type='text'/>";
-      var column5 = $('emPcrTable').rows[1].insertCell(-1);
+      var column5 = jQuery('#emPcrTable')[0].rows[1].insertCell(-1);
       column5.innerHTML = "<input id='emPcrResults' name='emPcrResults' type='text'/>";
-      var column6 = $('emPcrTable').rows[1].insertCell(-1);
+      var column6 = jQuery('#emPcrTable')[0].rows[1].insertCell(-1);
       column6.innerHTML = "<a href='javascript:void(0);' onclick='Library.empcr.addEmPcr();'/>Add</a>";
 
       Utils.ui.addMaxDatePicker("emPcrDate", 0);
     }
     else {
-      alert("Cannot add another emPCR when one is already in progress.")
+      alert("Cannot add another emPCR when one is already in progress.");
     }
   },
 
@@ -346,8 +394,9 @@ Library.empcr = {
         'pcrDate': f.emPcrDate,
         'results': f.emPcrResults,
         'url': ajaxurl},
-      {'updateElement': 'emPcrTable',
-        'doOnSuccess': function (json) {
+      {
+        'updateElement': 'emPcrTable',
+        'doOnSuccess': function () {
           jQuery('#emPcrTable').removeAttr("pcrInProgress");
         }
       }
@@ -358,27 +407,27 @@ Library.empcr = {
     if (!jQuery('#emPcrDilutionTable').attr("dilutionInProgress")) {
       jQuery('#emPcrDilutionTable').attr("dilutionInProgress", "true");
 
-      $('emPcrDilutionTable').insertRow(1);
+      jQuery('#emPcrDilutionTable')[0].insertRow(1);
 
-      var column2 = $('emPcrDilutionTable').rows[1].insertCell(-1);
+      var column2 = jQuery('#emPcrDilutionTable')[0].rows[1].insertCell(-1);
       column2.innerHTML = "" + emPcrId + " <input type='hidden' id='emPcrId' name='emPcrId' value='" + emPcrId + "'/>";
-      var column3 = $('emPcrDilutionTable').rows[1].insertCell(-1);
-      column3.innerHTML = "<input id='emPcrDilutionCreator' name='emPcrDilutionCreator' type='hidden' value='" + $('currentUser').innerHTML + "'/>" + $('currentUser').innerHTML;
-      var column4 = $('emPcrDilutionTable').rows[1].insertCell(-1);
+      var column3 = jQuery('#emPcrDilutionTable')[0].rows[1].insertCell(-1);
+      column3.innerHTML = "<input id='emPcrDilutionCreator' name='emPcrDilutionCreator' type='hidden' value='" + jQuery('#currentUser')[0].innerHTML + "'/>" + jQuery('#currentUser')[0].innerHTML;
+      var column4 = jQuery('#emPcrDilutionTable')[0].rows[1].insertCell(-1);
       column4.innerHTML = "<input id='emPcrDilutionDate' name='emPcrDilutionDate' type='text'/>";
-      var column6 = $('emPcrDilutionTable').rows[1].insertCell(-1);
+      var column6 = jQuery('#emPcrDilutionTable')[0].rows[1].insertCell(-1);
       column6.innerHTML = "<input id='emPcrDilutionResults' name='emPcrDilutionResults' type='text'/>";
-      var column7 = $('emPcrDilutionTable').rows[1].insertCell(-1);
+      var column7 = jQuery('#emPcrDilutionTable')[0].rows[1].insertCell(-1);
       column7.innerHTML = "<a href='javascript:void(0);' onclick='Library.empcr.addEmPcrDilution();'/>Add</a>";
 
       Utils.ui.addMaxDatePicker("emPcrDilutionDate", 0);
     }
     else {
-      alert("Cannot add another dilution when one is already in progress.")
+      alert("Cannot add another dilution when one is already in progress.");
     }
   },
 
-  addEmPcrDilution: function (form) {
+  addEmPcrDilution: function () {
     var f = Utils.mappifyForm("addEmPcrDilutionForm");
     Fluxion.doAjax(
       'libraryControllerHelperService',
@@ -389,38 +438,46 @@ Library.empcr = {
         'pcrDilutionDate': f.emPcrDilutionDate,
         //'pcrDilutionBarcode':f.emPcrDilutionBarcode.value,
         'results': f.emPcrDilutionResults,
-        'url': ajaxurl},
-      {'updateElement': 'emPcrDilutionTable',
-        'doOnSuccess': function (json) {
+        'url': ajaxurl
+      },
+      {
+        'updateElement': 'emPcrDilutionTable',
+        'doOnSuccess': function () {
           jQuery('#emPcrDilutionTable').removeAttr("dilutionInProgress");
         }
       }
     );
   },
 
-  deleteEmPCR: function (empcrId, successfunc) {
+  deleteEmPCR: function (empcrId) {
     if (confirm("Are you sure you really want to delete EmPCR " + empcrId + "? This operation is permanent!")) {
       Fluxion.doAjax(
         'libraryControllerHelperService',
         'deleteEmPCR',
-        {'empcrId': empcrId, 'url': ajaxurl},
-        {'doOnSuccess': function (json) {
-          successfunc();
+        {
+          'empcrId': empcrId,
+          'url': ajaxurl
+        },
+        {
+          'doOnSuccess': window.location.reload(true)
         }
-      });
+      );
     }
   },
 
-  deleteEmPCRDilution: function (empcrDilutionId, successfunc) {
+  deleteEmPCRDilution: function (empcrDilutionId) {
     if (confirm("Are you sure you really want to delete EmPCRDilution" + empcrDilutionId + "? This operation is permanent!")) {
       Fluxion.doAjax(
         'libraryControllerHelperService',
         'deleteEmPCRDilution',
-        {'empcrDilutionId': empcrDilutionId, 'url': ajaxurl},
-        {'doOnSuccess': function (json) {
-          successfunc();
+        {
+          'empcrDilutionId': empcrDilutionId,
+          'url': ajaxurl
+        },
+        {
+          'doOnSuccess': window.location.reload(true)
         }
-      });
+      );
     }
   }
 };
@@ -456,7 +513,6 @@ Library.barcode = {
             "</fieldset></form>");
 
     jQuery('#changeLibraryIdBarcodeDialog').dialog({
-      autoOpen: false,
       width: 400,
       modal: true,
       resizable: false,
@@ -469,7 +525,7 @@ Library.barcode = {
           jQuery(this).dialog('close');
         }
       }
-    }).dialog('open');
+    });
   },
 
   changeLibraryIdBarcode: function (libraryId, idBarcode) {
@@ -629,55 +685,129 @@ Library.barcode = {
     Fluxion.doAjax(
       'libraryControllerHelperService',
       'changeLibraryLocation',
-      {'libraryId': libraryId, 'locationBarcode': barcode, 'url': ajaxurl},
-      {'doOnSuccess': Utils.page.pageReload}
+      {
+        'libraryId': libraryId,
+        'locationBarcode': barcode,
+        'url': ajaxurl
+      },
+      {
+        'doOnSuccess': Utils.page.pageReload
+      }
     );
   }
 };
 
 Library.ui = {
-  changePlatformName: function (input) {
+  changePlatformName: function (callback) {
     var self = this;
-    var platform = jQuery(input).val();
+    var platform = jQuery('#platformNames').val();
     Fluxion.doAjax(
       'libraryControllerHelperService',
       'changePlatformName',
-      {'platform': platform, 'url': ajaxurl},
-      {'doOnSuccess': self.processPlatformChange}
-    );
-  },
-  changePlatformNameWithLibraryType: function (input, librarytype) {
-    var self = this;
-    var platform = jQuery(input).val();
-    Fluxion.doAjax(
-      'libraryControllerHelperService',
-      'changePlatformName',
-      {'platform': platform, 'url': ajaxurl},
-      {'doOnSuccess': function (json) {
-        jQuery('#libraryTypes').html(json.libraryTypes);
-        jQuery('#libraryTypes').val(librarytype);
-      }
-      }
-    );
-  },
-  changePlatformNameWithTagBarcodeStrategy: function (input, tagBarcodeStrategy) {
-    var self = this;
-    var platform = jQuery(input).val();
-    Fluxion.doAjax(
-      'libraryControllerHelperService',
-      'changePlatformName',
-      {'platform': platform, 'url': ajaxurl},
-      {'doOnSuccess': function (json) {
-        jQuery('#tagBarcodeStrategies').html(json.tagBarcodeStrategies);
-        jQuery('#tagBarcodeStrategies').val(tagBarcodeStrategy);
-      }
+      {
+        'platform': platform,
+        'url': ajaxurl
+      },
+      {
+        'doOnSuccess': function(json) {
+          Library.ui.processPlatformChange(json);
+          if (callback) {
+            callback();
+          }
+        }
       }
     );
   },
 
   processPlatformChange: function (json) {
     jQuery('#libraryTypes').html(json.libraryTypes);
-    jQuery('#tagBarcodeStrategies').html(json.tagBarcodeStrategies);
+    Library.barcodeFamilies = json.barcodeFamilies;
+    var box = jQuery('#tagBarcodeFamily').empty()[0];
+    for (var i = 0; i < Library.barcodeFamilies.length; i++) {
+      var option = document.createElement("option");
+      option.value = Library.barcodeFamilies[i].id;
+      option.text = Library.barcodeFamilies[i].name;
+      box.appendChild(option);
+    }
+    Library.ui.updateBarcodes();
+  },
+
+  updateBarcodes: function () {
+    jQuery('#tagBarcodesDiv').empty();
+    Library.lastBarcodePosition = 0;
+    Library.ui.createBarcodeNextBox();
+  },
+
+  createBarcodeBox: function(id) {
+    var selectedBarcode = Library.ui.getCurrentBarcodeFamily().barcodes.filter(function(barcode) { return barcode.id == id; })[0];
+    Library.ui.createBarcodeSelect(selectedBarcode.position, id);
+  },
+
+  maxOfArray: function(array) {
+    return Math.max(0, Math.max.apply(Math, array));
+  },
+
+  maxBarcodePositionInFamily: function(family) {
+    return Library.ui.maxOfArray(family.barcodes.map(function(barcode) { return barcode.position; }));
+  },
+
+  createBarcodeNextBox: function() {
+    var family = Library.ui.getCurrentBarcodeFamily();
+    var max = Library.ui.maxBarcodePositionInFamily(family);
+    if (Library.lastBarcodePosition < max) {
+      Library.ui.createBarcodeSelect(max, null);
+    } else {
+      var container = jQuery('#tagBarcodesDiv');
+      if (container.children().length == 0) {
+        container.text("No barcodes available.");
+      }
+    }
+    var container = document.getElementById('tagBarcodesDiv');
+    // If this barcode family requires fewer barcodes than previously selected, we need to null them out in the form input or Spring will create an array with a mix of new and old barcodes.
+    var biggestMax = Library.ui.maxOfArray(Library.barcodeFamilies.map(Library.ui.maxBarcodePositionInFamily));
+    for (var j = Library.lastBarcodePosition; j < biggestMax; j++) {
+       var nullInput = document.createElement("input");
+       nullInput.type = "hidden";
+       nullInput.value = "";
+       nullInput.name = "tagBarcodes[" + j + "]";
+       container.appendChild(nullInput);
+    }
+  },
+
+  getCurrentBarcodeFamily: function() {
+    var familyId = jQuery('#tagBarcodeFamily').val();
+    var families = Library.barcodeFamilies.filter(function(family) { return family.id == familyId; });
+    if (families.length == 0) {
+      return { id : 0, barcodes :  [] };
+    } else {
+      return families[0];
+    }
+  },
+
+  createBarcodeSelect: function(newPosition, selectedId) {
+    var container = document.getElementById('tagBarcodesDiv');
+    for (var position = Library.lastBarcodePosition + 1; position <= newPosition; position++) {
+      var widget = document.createElement("select");
+      widget.name = "tagBarcodes[" + (position - 1) + "]";
+      if (position > 1) {
+        var nullOption = document.createElement("option");
+        nullOption.value = "";
+        nullOption.text = "(None)";
+        widget.appendChild(nullOption);
+      }
+      var barcodes = Library.ui.getCurrentBarcodeFamily().barcodes.filter(function(barcode) { return barcode.position == position; });
+      for (var i = 0; i < barcodes.length; i++) {
+        var option = document.createElement("option");
+        option.value = barcodes[i].id;
+        option.text = barcodes[i].name + " (" + barcodes[i].sequence + ")";
+        widget.appendChild(option);
+      }
+      if (position == newPosition) {
+        widget.value = selectedId;
+      }
+      container.appendChild(widget);
+    }
+    Library.lastBarcodePosition = newPosition;
   },
 
   fillDownTagBarcodeStrategySelects: function (tableselector, th) {
@@ -709,52 +839,53 @@ Library.ui = {
       Fluxion.doAjax(
         'libraryControllerHelperService',
         'getBarcodesPositions',
-        {'strategy': tdtext,
+        {
+          'strategy': tdtext,
           'url': ajaxurl
         },
-        {'doOnSuccess': function (json) {
-          tableObj.find("tr:gt(" + frId + ")").each(function () {
-            var c = this.cells[col + 1];
-            jQuery(c).html("");
-            for (var i = 0; i < json.numApplicableBarcodes; i++) {
-              jQuery(c).append("<span class='tagBarcodeSelectDiv' position='" + (i + 1) + "' id='tagbarcodes" + (i + 1) + "'>- <i>Select...</i></span>");
-              if (json.numApplicableBarcodes > 1 && i == 0) {
-                jQuery(c).append("|");
+        {
+          'doOnSuccess': function (json) {
+            tableObj.find("tr:gt(" + frId + ")").each(function () {
+              var c = this.cells[col + 1];
+              jQuery(c).html("");
+              for (var i = 0; i < json.numApplicableBarcodes; i++) {
+                jQuery(c).append("<span class='tagBarcodeSelectDiv' position='" + (i + 1) + "' id='tagbarcodes" + (i + 1) + "'>- <i>Select...</i></span>");
+                if (json.numApplicableBarcodes > 1 && i === 0) {
+                  jQuery(c).append("|");
+                }
               }
-            }
-
-            //bind editable to selects
-            jQuery("#cinput .tagBarcodeSelectDiv").editable(function (value, settings) {
-              return value;
-            },
-            {
-              loadurl: '../../library/barcodesForPosition',
-              loaddata: function (value, settings) {
-                var ret = {};
-                ret["position"] = jQuery(this).attr("position");
-                if (!Utils.validation.isNullCheck(tdtext)) {
-                  ret['barcodeStrategy'] = tdtext;
-                }
-                else {
-                  ret['barcodeStrategy'] = '';
-                }
-
-                return ret;
+  
+              //bind editable to selects
+              jQuery("#cinput .tagBarcodeSelectDiv").editable(function (value, settings) {
+                return value;
               },
-              type: 'select',
-              onblur: 'submit',
-              placeholder: '',
-              style: 'inherit',
-              submitdata: function (tvalue, tsettings) {
-                return {
-                  "row_id": this.parentNode.getAttribute('id'),
-                  "column": table.fnGetPosition(this)[2]
-                };
-              }
+              {
+                loadurl: '../../library/barcodesForPosition',
+                loaddata: function (value, settings) {
+                  var ret = {};
+                  ret["position"] = jQuery(this).attr("position");
+                  if (!Utils.validation.isNullCheck(tdtext)) {
+                    ret['barcodeStrategy'] = tdtext;
+                  } else {
+                    ret['barcodeStrategy'] = '';
+                  }
+                  return ret;
+                },
+                type: 'select',
+                onblur: 'submit',
+                placeholder: '',
+                style: 'inherit',
+                submitdata: function (tvalue, tsettings) {
+                  return {
+                    "row_id": this.parentNode.getAttribute('id'),
+                    "column": table.fnGetPosition(this)[2]
+                  };
+                }
+              });
             });
-          });
+          }
         }
-        });
+      );
     }
     else {
       alert("Please select a row to use as the Fill Down template by clicking in the Select column for that row.");
@@ -792,7 +923,7 @@ Library.ui = {
 
         if (stratText.trim()) {
           //no select means empty or already filled
-          if (firstSelText.indexOf("Select") == 0) {
+          if (firstSelText.indexOf("Select") === 0) {
             //same strategy, just copy the cell
             if (firstSelText === stratText) {
               cell.html(tdtext);
@@ -801,19 +932,22 @@ Library.ui = {
               Fluxion.doAjax(
                 'libraryControllerHelperService',
                 'getBarcodesPositions',
-                {'strategy': stratText,
+                {
+                  'strategy': stratText,
                   'url': ajaxurl
                 },
-                {'doOnSuccess': function (json) {
-                  cell.html("");
-                  for (var i = 0; i < json.numApplicableBarcodes; i++) {
-                    cell.append("<span class='tagBarcodeSelectDiv' position='" + (i + 1) + "' id='tagbarcodes" + (i + 1) + "'>- <i>Select...</i></span>");
-                    if (json.numApplicableBarcodes > 1 && i == 0) {
-                      cell.append("|");
+                {
+                  'doOnSuccess': function (json) {
+                    cell.html("");
+                    for (var i = 0; i < json.numApplicableBarcodes; i++) {
+                      cell.append("<span class='tagBarcodeSelectDiv' position='" + (i + 1) + "' id='tagbarcodes" + (i + 1) + "'>- <i>Select...</i></span>");
+                      if (json.numApplicableBarcodes > 1 && i === 0) {
+                        cell.append("|");
+                      }
                     }
                   }
                 }
-              });
+              );
             }
           }
           else {
@@ -889,8 +1023,15 @@ Library.ui = {
     Fluxion.doAjax(
       'libraryControllerHelperService',
       'addLibraryNote',
-      {'libraryId': libraryId, 'internalOnly': internalOnly, 'text': text, 'url': ajaxurl},
-      {'doOnSuccess': Utils.page.pageReload}
+      {
+        'libraryId': libraryId,
+        'internalOnly': internalOnly,
+        'text': text,
+        'url': ajaxurl
+      },
+      {
+        'doOnSuccess': Utils.page.pageReload
+      }
     );
   },
 
@@ -899,8 +1040,14 @@ Library.ui = {
       Fluxion.doAjax(
         'libraryControllerHelperService',
         'deleteLibraryNote',
-        {'libraryId': libraryId, 'noteId': noteId, 'url': ajaxurl},
-        {'doOnSuccess': Utils.page.pageReload}
+        {
+          'libraryId': libraryId,
+          'noteId': noteId,
+          'url': ajaxurl
+        },
+        {
+          'doOnSuccess': Utils.page.pageReload
+        }
       );
     }
   },
@@ -933,28 +1080,197 @@ Library.ui = {
       {
         'url': ajaxurl
       },
-      {'doOnSuccess': function (json) {
-        jQuery('#listingLibrariesTable').html('');
-        jQuery('#listingLibrariesTable').dataTable({
-          "aaData": json.array,
-          "aoColumns": [
-            { "sTitle": "Library Name", "sType": "no-lib"},
-            { "sTitle": "Alias"},
-            { "sTitle": "Type"},
-            { "sTitle": "Sample Name", "sType": "no-sam"},
-            { "sTitle": "QC Passed"},
-            { "sTitle": "Edit"},
-            { "sTitle": "ID", "bVisible": false}
-          ],
-          "bJQueryUI": true,
-          "bAutoWidth": false,
-          "iDisplayLength": 25,
-          "aaSorting": [
-            [0, "desc"]
-          ]
-        });
-      }
+      {
+        'doOnSuccess': function (json) {
+          jQuery('#listingLibrariesTable').html('');
+          jQuery('#listingLibrariesTable').dataTable({
+            "aaData": json.array,
+            "aoColumns": [
+              { "sTitle": "Bulk Edit" },
+              { "sTitle": "Library Name", "sType": "no-lib"},
+              { "sTitle": "Alias"},
+              { "sTitle": "Type"},
+              { "sTitle": "Sample Name", "sType": "no-sam"},
+              { "sTitle": "QC Passed"},
+              { "sTitle": "Barcode"},
+              { "sTitle": "ID", "bVisible": false}
+            ],
+            "bJQueryUI": true,
+            "bAutoWidth": false,
+            "iDisplayLength": 25,
+            "aaSorting": [
+              [1, "desc"]
+            ]
+          });
+          jQuery("#toolbar").parent().addClass("fg-toolbar ui-toolbar ui-widget-header ui-corner-tl ui-corner-tr ui-helper-clearfix");
+          jQuery("#toolbar").append("<button style=\"margin-left:5px;\" onclick=\"window.location.href='/miso/sample/new';\" class=\"fg-button ui-state-default ui-corner-all\">Add Sample</button>");
+          
+          jQuery("input[class='bulkCheckbox']").click(function () {
+            if (jQuery(this).parent().parent().hasClass('row_selected')) {
+              jQuery(this).parent().parent().removeClass('row_selected');
+            } else if (!jQuery(this).parent().parent().hasClass('row_selected')) {
+              jQuery(this).parent().parent().addClass('row_selected');
+            }
+          });
+          
+          var selectAll = '<label><input type="checkbox" onchange="Library.ui.checkAll(this)" id="checkAll">Select All</label>';
+          document.getElementById('listingLibrariesTable').insertAdjacentHTML('beforebegin', selectAll);
+          
+          var actions = ['<select id="dropdownActions"><option value="">-- Bulk actions</option>'];
+          actions.push('<option value="update">Update selected</option>');
+          actions.push('<option value="dilutions">Make dilutions from selected</option>');
+          actions.push('<option value="empty">Empty selected</option>');
+          actions.push('<option value="archive">Archive selected</option>');
+          actions.push('</select>');
+          document.getElementById('listingLibrariesTable').insertAdjacentHTML('afterend', actions.join(''));
+          var saveButton = '<button id="go" type="button" onclick="Library.ui.handleBulkAction();">Go</button>';
+          document.getElementById('dropdownActions').insertAdjacentHTML('afterend', saveButton);
+        }
       }
     );
+  },
+  
+  checkAll: function (el) {
+    var checkboxes = document.getElementsByClassName('bulkCheckbox');
+    if (el.checked) {
+      for (var i = 0; i < checkboxes.length; i++) {
+        checkboxes[i].checked = true;
+      }
+    } else {
+      for (var i = 0; i < checkboxes.length; i++) {
+        checkboxes[i].checked = false;
+      }
+    }
+  },
+  
+  handleBulkAction: function () {
+    var selectedValue = document.getElementById('dropdownActions').value;
+    var options = {
+      "update": Library.ui.updateSelectedItems,
+      "dilutions": Library.ui.makeDilutionsFromSelectedItems,
+      "empty": Library.ui.emptySelectedItems,
+      "archive": Library.ui.archiveSelectedItems
+    }
+    var action = options[selectedValue];
+    action();
+  },
+  
+  // get array of selected IDs
+  getSelectedIds: function () {
+    return [].slice.call(document.getElementsByClassName('bulkCheckbox'))
+             .filter(function (input) { return input.checked; })
+             .map(function (input) { return input.value; });
+  },
+  
+  updateSelectedItems: function () {
+    var selectedIdsArray = Library.ui.getSelectedIds();
+    if (selectedIdsArray.length === 0) {
+      alert("Please select one or more Libraries to update.");
+      return false;
+    }
+    alert("Check if controller methods have been implemented.");
+    // window.location = "library/bulk/" + selectedIdsArray.join(',');
+  },
+  
+  // TODO: finish this, and the one in sample_ajax.js
+  makeDilutionsFromSelectedItems: function () {
+    var selectedIdsArray = Library.ui.getSelectedIds();
+    if (selectedIdsArray.length === 0) {
+      alert("Please select one or more Libraries to dilute.");
+      return false;
+    }
+    var cageDiv = '<div id="cageDialog"><span class="dialog">Look for this feature in the next release!<br>' 
+      + '<img src="http://images.mentalfloss.com/sites/default/files/styles/insert_main_wide_image/public/uncanny_valley.jpg"/></span></div>';
+    document.getElementById('go').insertAdjacentHTML('afterend', cageDiv);
+    jQuery('#cageDialog').dialog({
+      modal: true,
+      width: 640,
+      buttons: {
+        "Ok": function () {
+          jQuery(this).dialog("close");
+        }
+      }
+    });
+  },
+  
+  // TODO: finish this, and the one in sample_ajax.js
+  emptySelectedItems: function () {
+    var selectedIdsArray = Library.ui.getSelectedIds();
+    if (selectedIdsArray.length === 0) {
+      alert("Please select one or more Libraries to empty.");
+      return false;
+    }
+    var cageDiv = '<div id="cageDialog"><span class="dialog">Look for this feature in the next release!<br>' 
+      + '<img src="http://nicolascage.us/wp-content/uploads/2013/08/Comet-Cage1.jpg"/></span></div>';
+    document.getElementById('go').insertAdjacentHTML('afterend', cageDiv);
+    jQuery('#cageDialog').dialog({
+      modal: true,
+      width: 620,
+      buttons: {
+        "Ok": function () {
+          jQuery(this).dialog("close");
+        }
+      }
+    });
+  },
+  
+  //TODO: finish this, and the one in sample_ajax.js
+  archiveSelectedItems: function () {
+    var selectedIdsArray = Library.ui.getSelectedIds();
+    if (selectedIdsArray.length === 0) {
+      alert("Please select one or more Libraries to archive.");
+      return false;
+    }
+    var cageDiv = '<div id="cageDialog"><span class="dialog">Look for this feature in the next release!<br>' 
+      + '<img src="http://i2.listal.com/image/1675309/600full-fast-times-at-ridgemont-high-screenshot.jpg"/></span></div>';
+    document.getElementById('go').insertAdjacentHTML('afterend', cageDiv);
+    jQuery('#cageDialog').dialog({
+      modal: true,
+      width: 620,
+      buttons: {
+        "Ok": function () {
+          jQuery(this).dialog("close");
+        }
+      }
+    });
+  },
+
+  changeDesign: function() {
+    var designSelect = document.getElementById('libraryDesignTypes');
+    var selection = document.getElementById('librarySelectionTypes');
+    var strategy = document.getElementById('libraryStrategyTypes');
+    var libraryType = document.getElementById('libraryTypes');
+    var platform = document.getElementById('platformNames');
+    if (designSelect == null || designSelect.value == -1) {
+      selection.disabled = false;
+      strategy.disabled = false;
+      libraryType.disabled = false;
+      platform.disabled = false;
+    } else {
+      var matchedDesigns = Library.designs.filter(function (rule) { return rule.id == designSelect.value; });
+      if (matchedDesigns.length == 1) {
+        selection.value = matchedDesigns[0].librarySelectionType;
+        selection.disabled = true;
+        strategy.value = matchedDesigns[0].libraryStrategyType;
+        strategy.disabled = true;
+        platform.value = matchedDesigns[0].libraryType.platformType;
+        platform.disabled = true;
+        Fluxion.doAjax(
+          'libraryControllerHelperService',
+          'changePlatformName',
+          {
+            'platform': platform.value,
+            'url': ajaxurl
+          },
+          {
+            'doOnSuccess': function(data) {
+              Library.ui.processPlatformChange(data);
+              libraryType.value = matchedDesigns[0].libraryType.id;
+              libraryType.disabled = true;
+            }
+          }
+        );
+      }
+    }
   }
 };

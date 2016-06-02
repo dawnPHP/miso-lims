@@ -25,8 +25,10 @@ package uk.ac.bbsrc.tgac.miso.core.data;
 
 import java.util.Collection;
 import java.util.Date;
+import java.util.Set;
 
 import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+import org.codehaus.jackson.annotate.JsonManagedReference;
 import org.codehaus.jackson.annotate.JsonTypeName;
 import org.codehaus.jackson.map.annotate.JsonSerialize;
 import org.w3c.dom.Document;
@@ -52,31 +54,15 @@ import uk.ac.bbsrc.tgac.miso.core.security.SecurableByProfile;
  */
 @JsonSerialize(typing = JsonSerialize.Typing.STATIC, include = JsonSerialize.Inclusion.NON_NULL)
 @JsonTypeName("sample")
-@JsonIgnoreProperties({"securityProfile","submissionDocument"})
+@JsonIgnoreProperties({ "securityProfile", "submissionDocument", "children", "parent" })
 @PrintableBarcode
-public interface Sample extends SecurableByProfile, Submittable<Document>, Locatable, Reportable, Comparable, Deletable, Plateable, Boxable {
+public interface Sample
+    extends SecurableByProfile, Submittable<Document>, Locatable, Reportable, Comparable, Deletable, Plateable, Boxable {
 
   /** Field UNSAVED_ID */
   public static final Long UNSAVED_ID = 0L;
   /** Field PREFIX */
   public static final String PREFIX = "SAM";
-
-  /**
-   * Returns the sampleId of this Sample object.
-   * 
-   * @return Long sampleId.
-   */
-  @Deprecated
-  public Long getSampleId();
-
-  /**
-   * Sets the sampleId of this Sample object.
-   * 
-   * @param sampleId
-   *          sampleId.
-   */
-  @Deprecated
-  public void setSampleId(Long sampleId);
 
   public void setId(long id);
 
@@ -186,6 +172,7 @@ public interface Sample extends SecurableByProfile, Submittable<Document>, Locat
    * @return Collection<Note> notes.
    */
   public Collection<Note> getNotes();
+
   /**
    * Returns the change logs of this Sample object.
    * 
@@ -283,11 +270,38 @@ public interface Sample extends SecurableByProfile, Submittable<Document>, Locat
    */
   void setQCs(Collection<SampleQC> qcs);
 
-  Date getLastUpdated();
-
-  void setLastUpdated(Date lastUpdated);
-
   public User getLastModifier();
 
   public void setLastModifier(User user);
+
+  public SampleAnalyte getSampleAnalyte();
+
+  public void setSampleAnalyte(SampleAnalyte sampleAnalyte);
+
+  public Identity getIdentity();
+
+  public void setIdentity(Identity identity);
+
+  @JsonManagedReference
+  public SampleAdditionalInfo getSampleAdditionalInfo();
+
+  public void setSampleAdditionalInfo(SampleAdditionalInfo sampleAdditionalInfo);
+
+  public Sample getParent();
+
+  public Set<Sample> getChildren();
+
+  public void setSampleTissue(SampleTissue sampleTissue);
+
+  public SampleTissue getSampleTissue();
+
+  /**
+   * Get the security profile id independently of the security profile. This is due to Hibernate. Don't use it.
+   */
+  public Long getSecurityProfileId();
+
+  /**
+   * Sets the security profile id independently of the security profile. This is due to Hibernate. Don't use it.
+   */
+  public void setSecurityProfileId(Long securityProfileId);
 }

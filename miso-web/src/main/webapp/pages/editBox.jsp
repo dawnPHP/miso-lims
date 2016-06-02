@@ -29,19 +29,14 @@
   Time: 15:09:06
 --%>
 <%@ include file="../header.jsp" %>
-<script src="<c:url value='/scripts/jquery/js/jquery.breadcrumbs.popup.js'/>" type="text/javascript"></script>
 <script src="<c:url value='/scripts/jquery/datatables/js/jquery.dataTables.min.js'/>" type="text/javascript"></script>
 <script src="<c:url value='/scripts/jquery/editable/jquery.jeditable.mini.js'/>" type="text/javascript"></script>
 <script src="<c:url value='/scripts/jquery/editable/jquery.jeditable.datepicker.js'/>" type="text/javascript"></script>
 <script src="<c:url value='/scripts/jquery/editable/jquery.jeditable.checkbox.js'/>" type="text/javascript"></script>
 <link href="<c:url value='/scripts/jquery/datatables/css/jquery.dataTables.css'/>" rel="stylesheet" type="text/css">
 
-<script src="<c:url value='/scripts/datatables_utils.js?ts=${timestamp.time}'/>" type="text/javascript"></script>
-<script src="<c:url value='/scripts/natural_sort.js?ts=${timestamp.time}'/>" type="text/javascript"></script>
-
-<script src="<c:url value='/scripts/stats_ajax.js?ts=${timestamp.time}'/>" type="text/javascript"></script>
-
-<script src="<c:url value='/scripts/box_visualization.js'/>" type="text/javascript"></script>
+<script src="<c:url value='/scripts/datatables_utils.js'/>" type="text/javascript"></script>
+<script src="<c:url value='/scripts/natural_sort.js'/>" type="text/javascript"></script>
 
 <script type="text/javascript" src="<c:url value='/scripts/parsley/parsley.min.js'/>"></script>
 
@@ -176,14 +171,22 @@
     </tr>
     <tr>
       <td class="h">Box Use:</td>
-      <td><form:select id="boxUse" path="use.id" items="${boxUses}"/></td>
+      <td><miso:select id="boxUse" path="use" items="${boxUses}" itemLabel="alias" itemValue="id"/></td>
     </tr>
     <tr>
       <td>Box Size:</td>
       <c:choose>
         <c:when test="${box.id == 0}">
-          <td><form:select id="boxSize" path="size.id"><form:options items="${boxSizes}"/></form:select><c:choose>
-            <c:when test="${scannerEnabled}">("scannable" means this box can be scanned by your lab's bulk scanner)</c:when></c:choose></td>
+          <td>
+            <c:choose>
+              <c:when test="${scannerEnabled}">
+                <miso:select id="boxSize" path="size" items="${boxSizes}" itemLabel="rowsByColumnsWithScan" itemValue="id"/>
+                ("scannable" means this box can be scanned by the bulk scanner)
+              </c:when>
+             <c:otherwise>
+               <miso:select id="boxSize" path="size" items="${boxSizes}" itemLabel="rowsByColumns" itemValue="id"/>
+             </c:otherwise>
+           </c:choose></td>
         </c:when>
         <c:otherwise><td>${box.size.getRowsByColumns()} <c:choose><c:when test="${scannerEnabled}">(can ${box.size.scannable ? '':'not '}be scanned by your lab's bulk scanner)</c:when></c:choose></td></c:otherwise>
       </c:choose>
@@ -210,7 +213,7 @@
       </a>
       <div id="actionsmenu" onmouseover="mcancelclosetime()" onmouseout="mclosetime()">
         <a onclick="Box.ui.exportBox(${box.id});" href="javascript:void(0);" class="add">Export Box to Excel</a>
-        <a onclick="Box.ui.emptyEntireBox(${box.id});" href="javascript:void(0);" class="add">Mark Entire Box Empty</a>
+        <a onclick="Box.ui.emptyEntireBox(${box.id});" href="javascript:void(0);" class="add">Trash All Tubes</a>
         <c:if test="${(scannerEnabled) && (box.size.scannable)}"><a onclick="Box.initScan();" href="javascript:void(0);">Scan Box</a></c:if>
       </div>
     </li>

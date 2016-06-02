@@ -37,7 +37,7 @@ import javax.xml.transform.TransformerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
@@ -73,9 +73,7 @@ import uk.ac.bbsrc.tgac.miso.core.util.LimsUtils;
 import uk.ac.bbsrc.tgac.miso.core.util.SubmissionUtils;
 import uk.ac.bbsrc.tgac.miso.runstats.client.RunStatsException;
 import uk.ac.bbsrc.tgac.miso.runstats.client.manager.RunStatsManager;
-import uk.ac.bbsrc.tgac.miso.sqlstore.util.DbUtils;
-import uk.ac.bbsrc.tgac.miso.webapp.context.ApplicationContextProvider;
-import uk.ac.bbsrc.tgac.miso.webapp.util.MisoPropertyExporter;
+import uk.ac.bbsrc.tgac.miso.service.SequencingParametersService;
 import uk.ac.bbsrc.tgac.miso.webapp.util.MisoWebUtils;
 
 import com.eaglegenomics.simlims.core.User;
@@ -97,23 +95,12 @@ public class EditRunController {
   private DataObjectFactory dataObjectFactory;
 
   @Autowired
-  private JdbcTemplate interfaceTemplate;
-
-  @Autowired
   private RunAlertManager runAlertManager;
 
   private RunStatsManager runStatsManager;
 
   @Autowired
-  private ApplicationContextProvider applicationContextProvider;
-
-  public void setApplicationContextProvider(ApplicationContextProvider applicationContextProvider) {
-    this.applicationContextProvider = applicationContextProvider;
-  }
-
-  public void setInterfaceTemplate(JdbcTemplate interfaceTemplate) {
-    this.interfaceTemplate = interfaceTemplate;
-  }
+  private SequencingParametersService sequencingParametersService;
 
   public void setDataObjectFactory(DataObjectFactory dataObjectFactory) {
     this.dataObjectFactory = dataObjectFactory;
@@ -137,7 +124,7 @@ public class EditRunController {
 
   @ModelAttribute("maxLengths")
   public Map<String, Integer> maxLengths() throws IOException {
-    return DbUtils.getColumnSizes(interfaceTemplate, "Run");
+    return requestManager.getRunColumnSizes();
   }
 
   @ModelAttribute("platformTypes")
@@ -168,12 +155,12 @@ public class EditRunController {
     return false;
   }
 
+  @Value("${miso.notification.interop.enabled}")
+  private Boolean metrixEnabled;
+
   @ModelAttribute("metrixEnabled")
   public Boolean isMetrixEnabled() {
-    MisoPropertyExporter exporter = (MisoPropertyExporter) ApplicationContextProvider.getApplicationContext().getBean("propertyConfigurer");
-    Map<String, String> misoProperties = exporter.getResolvedProperties();
-    return misoProperties.containsKey("miso.notification.interop.enabled")
-        && Boolean.parseBoolean(misoProperties.get("miso.notification.interop.enabled"));
+    return metrixEnabled;
   }
 
   public Boolean hasOperationsQcPassed(Run run) throws IOException {
@@ -250,30 +237,28 @@ public class EditRunController {
     } else {
       run = requestManager.getRunById(runId);
     }
-    
+
     return setupForm(run, model);
   }
-  
+
   @RequestMapping(value = "/alias/{runAlias}", method = RequestMethod.GET)
   public ModelAndView setupForm(@PathVariable String runAlias, ModelMap model) throws IOException {
     Run run = requestManager.getRunByAlias(runAlias);
     return setupForm(run, model);
   }
-  
+
   public ModelAndView setupForm(Run run, ModelMap model) throws IOException {
     try {
       User user = securityManager.getUserByLoginName(SecurityContextHolder.getContext().getAuthentication().getName());
 
       if (run == null) {
         throw new SecurityException("No such Run.");
-      }
-      else if (run.getId() == AbstractRun.UNSAVED_ID) {
+      } else if (run.getId() == AbstractRun.UNSAVED_ID) {
         run = dataObjectFactory.getRun(user);
         model.put("title", "New Run");
         model.put("availablePools", populateAvailablePools(user));
         model.put("multiplexed", false);
-      }
-      else {
+      } else {
         model.put("title", "Run " + run.getId());
         model.put("multiplexed", isMultiplexed(run));
         try {
@@ -286,7 +271,7 @@ public class EditRunController {
           log.error("setup run form", e);
         }
       }
-      
+
       if (!run.userCanRead(user)) {
         throw new SecurityException("Permission denied.");
       }
@@ -305,6 +290,12 @@ public class EditRunController {
           model.put("error",
               MisoWebUtils.generateErrorDivMessage("Cannot retrieve status XML for the given run: " + run.getAlias(), e.getMessage()));
           log.error("transform XML status", e);
+        }
+        if (run.getSequencerReference() != null) {
+          model.put("sequencingParameters",
+              sequencingParametersService.getForPlatform((long) run.getSequencerReference().getPlatform().getId()));
+        } else {
+          model.put("sequencingParameters", Collections.emptyList());
         }
       }
 

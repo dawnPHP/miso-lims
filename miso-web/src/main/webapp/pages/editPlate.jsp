@@ -21,28 +21,31 @@
   ~ **********************************************************************
   --%>
 <%@ include file="../header.jsp" %>
-<script type="text/javascript" src="<c:url value='/scripts/jquery/js/jquery.breadcrumbs.popup.js'/>"></script>
-<script type="text/javascript" src="<c:url value='/scripts/plate_ajax.js?ts=${timestamp.time}'/>"></script>
-
-<script src="<c:url value='/scripts/datatables_utils.js?ts=${timestamp.time}'/>" type="text/javascript"></script>
+<script src="<c:url value='/scripts/datatables_utils.js'/>" type="text/javascript"></script>
 <script src="<c:url value='/scripts/jquery/datatables/js/jquery.dataTables.min.js'/>" type="text/javascript"></script>
 <script src="<c:url value='/scripts/jquery/editable/jquery.jeditable.mini.js'/>" type="text/javascript"></script>
 <script src="<c:url value='/scripts/jquery/editable/jquery.jeditable.datepicker.js'/>" type="text/javascript"></script>
 <script src="<c:url value='/scripts/jquery/editable/jquery.jeditable.checkbox.js'/>" type="text/javascript"></script>
 <link rel="stylesheet" href="<c:url value='/scripts/jquery/datatables/css/jquery.dataTables.css'/>" type="text/css">
 
+<script type="text/javascript" src="<c:url value='/scripts/parsley/parsley.min.js'/>"></script>
+
 <div id="maincontent">
 <div id="contentcolumn">
-<form:form action="/miso/plate" method="POST" commandName="plate" autocomplete="off"
-           onsubmit="return validate_plate(this);">
+<form:form id="plate-form" data-parsley-validate="" action="/miso/plate" method="POST" commandName="plate" autocomplete="off">
 <sessionConversation:insertSessionConversationId attributeName="plate"/>
 <h1>
   <c:choose>
     <c:when test="${plate.id != 0}">Edit</c:when>
     <c:otherwise>Create</c:otherwise>
   </c:choose> Plate
-  <button type="submit" class="fg-button ui-state-default ui-corner-all">Save</button>
+  <button type="button" onclick="return Plate.validatePlate();" class="fg-button ui-state-default ui-corner-all">Save</button>
 </h1>
+
+<div class="bs-callout bs-callout-warning hidden">
+  <h2>Oh snap!</h2>
+  <p>This form seems to be invalid!</p>
+</div>
 
 <h2>Plate Information</h2>
 
@@ -77,25 +80,27 @@
   </div>
   <div class="barcodeArea ui-corner-all">
     <span style="float: left; font-size: 24px; font-weight: bold; color:#BBBBBB">ID</span>
-    <ul class="barcode-ddm">
-      <li>
-        <a onmouseover="mopen('idBarcodeMenu')" onmouseout="mclosetime()">
-          <span style="float:right; margin-top:6px;" class="ui-icon ui-icon-triangle-1-s"></span>
-          <span id="idBarcode" style="float:right"></span>
-        </a>
+    <c:if test="${not empty plate.id}">
+      <ul class="barcode-ddm">
+        <li>
+          <a onmouseover="mopen('idBarcodeMenu')" onmouseout="mclosetime()">
+            <span style="float:right; margin-top:6px;" class="ui-icon ui-icon-triangle-1-s"></span>
+            <span id="idBarcode" style="float:right"></span>
+          </a>
 
-        <div id="idBarcodeMenu"
-             onmouseover="mcancelclosetime()"
-             onmouseout="mclosetime()">
-          <a href="javascript:void(0);" 
-             onclick="Plate.barcode.printPlateBarcodes(${plate.id});">Print</a>
-          <c:if test="${not autoGenerateIdBarcodes}">
+          <div id="idBarcodeMenu"
+               onmouseover="mcancelclosetime()"
+               onmouseout="mclosetime()">
             <a href="javascript:void(0);"
-             onclick="Plate.ui.showPlateIdBarcodeChangeDialog(${plate.id}, '${plate.identificationBarcode}');">Assign New Barcode</a>
-          </c:if>
-        </div>
-      </li>
-    </ul>
+               onclick="Plate.barcode.printPlateBarcodes(${plate.id});">Print</a>
+            <c:if test="${not autoGenerateIdBarcodes}">
+              <a href="javascript:void(0);"
+               onclick="Plate.ui.showPlateIdBarcodeChangeDialog(${plate.id}, '${plate.identificationBarcode}');">Assign New Barcode</a>
+            </c:if>
+          </div>
+        </li>
+      </ul>
+    </c:if>
     <div id="changePlateIdBarcodeDialog" title="Assign New Barcode"></div>
     <c:if test="${not empty plate.identificationBarcode}">
       <script type="text/javascript">
@@ -160,8 +165,10 @@
         <c:when test="${plate.id == 0 or empty plate.plateMaterialType}">
           <td>Plate Material Type:</td>
           <td>
-            <form:radiobuttons id="plateMaterialType" path="plateMaterialType"
-                               onchange="Plate.tagbarcode.getPlateBarcodesByMaterialType(this);"/>
+            <div id="plateMaterialButtons">
+              <form:radiobuttons id="plateMaterialType" path="plateMaterialType"
+                                 onchange="Plate.tagbarcode.getPlateBarcodesByMaterialType(this);"/>
+            </div>
           </td>
         </c:when>
         <c:otherwise>
@@ -171,34 +178,18 @@
       </c:choose>
     </tr>
     <tr>
+      <td></td>
+      <td>
+        <div class="parsley-errors-list filled" id="plateMaterialError">
+          <div class="parsley-required"></div>
+        </div>
+      </td>
+    </tr>
+    <tr>
       <td id="plateBarcodeSelect">
         <i>Please choose a material type above...</i>
       </td>
     </tr>
-      <%--
-        <tr>
-            <c:choose>
-                <c:when test="${empty plate.plateId or empty plate.tagBarcode}">
-                    <td>Tag Barcode:</td>
-                    <td>
-                        <form:select id="tagBarcodes" path="tagBarcode">
-                          <form:option value="" label="No Barcode"/>
-                          <form:options items="${availableTagBarcodes}" itemLabel="name" itemValue="tagBarcodeId" />
-                        </form:select>
-                    </td>
-                </c:when>
-                <c:otherwise>
-                    <td>Tag Barcode:</td>
-                    <td>
-                        <form:select id="tagBarcodes" path="tagBarcode">
-                          <form:option value="" label="No Barcode"/>
-                          <form:options items="${availableTagBarcodes}" itemLabel="name" itemValue="tagBarcodeId" />
-                        </form:select>
-                    </td>
-                </c:otherwise>
-            </c:choose>
-        </tr>
-        --%>
   </table>
     <%--
     <c:if test="${plate.id != 0}">
@@ -237,12 +228,19 @@
     </c:if>
   --%>
   </form:form>
+  
+  <script type="text/javascript">
+    jQuery(document).ready(function () {
+      Validate.attachParsley('#plate-form');
+    });
+  </script>
 
   <a name="plate_elements"></a>
 
   <h1>
     Elements
   </h1>
+  <c:if test="${plate.id == 0}">
   <ul class="sddm">
     <li>
       <a onmouseover="mopen('qcmenu')" onmouseout="mclosetime()">Options
@@ -252,15 +250,23 @@
       <div id="qcmenu"
            onmouseover="mcancelclosetime()"
            onmouseout="mclosetime()">
-        <c:if test="${plate.id == 0}">
-          <a href="javascript:void(0);" onclick="Plate.ui.downloadPlateInputForm();">Get Plate Input Form</a>
+          <a href="javascript:void(0);" onclick="Plate.ui.downloadPlateInputForm('xlsx');">Get Plate Input Form</a>
           <a href="javascript:void(0);" class="add" onclick="Plate.ui.uploadPlateInputForm();">Import Plate Input
             Form</a>
-        </c:if>
       </div>
     </li>
   </ul>
+  </c:if>
   <span style="clear:both">
+  <c:choose>
+  <c:when test="${plate.id == 0}">
+    <h3>Please note: You can only add Elements before the Plate is saved. Use the Options menu on the right to upload a spreadsheet of elements.</h3>
+  </c:when>
+  <c:otherwise>
+    <h3>Please note: you can only add Elements before the Plate is saved.</h3>
+  </c:otherwise>
+  </c:choose>
+
     <c:if test="${plate.id == 0}">
       <div id="plateformdiv" class="simplebox" style="display:none;">
         <table class="in">

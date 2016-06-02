@@ -51,10 +51,10 @@ import uk.ac.bbsrc.tgac.miso.core.manager.RequestManager;
  */
 public class ProjectAlertManager {
   protected static final Logger log = LoggerFactory.getLogger(ProjectAlertManager.class);
-  Map<Long, Project> projects = new HashMap<Long, Project>();
+  final Map<Long, Project> projects = new HashMap<Long, Project>();
 
   private RequestManager misoRequestManager;
-  private Cloner cloner = new Cloner();
+  private final Cloner cloner = new Cloner();
   private boolean enabled = true;
 
   @Autowired
@@ -111,6 +111,7 @@ public class ProjectAlertManager {
   public void push(Project project) {
     if (enabled) {
       if (project != null) {
+        cloner.dontClone(org.hibernate.collection.internal.PersistentSet.class);
         Project clone = cloner.deepClone(project);
         if (clone != null) {
           if (projects.containsKey(project.getId())) {

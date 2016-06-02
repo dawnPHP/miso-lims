@@ -25,6 +25,11 @@ package uk.ac.bbsrc.tgac.miso.webapp.controller.rest;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.Response.Status;
 
 import org.codehaus.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
@@ -36,13 +41,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.SessionAttributes;
-
-import com.eaglegenomics.simlims.core.User;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import uk.ac.bbsrc.tgac.miso.core.data.Library;
 import uk.ac.bbsrc.tgac.miso.core.data.LibraryQC;
 import uk.ac.bbsrc.tgac.miso.core.data.Project;
 import uk.ac.bbsrc.tgac.miso.core.data.Sample;
+import uk.ac.bbsrc.tgac.miso.core.data.SampleGroupId;
 import uk.ac.bbsrc.tgac.miso.core.data.SampleQC;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.LibraryDilution;
 import uk.ac.bbsrc.tgac.miso.core.exception.MalformedDilutionException;
@@ -53,7 +58,10 @@ import uk.ac.bbsrc.tgac.miso.core.manager.RequestManager;
 import uk.ac.bbsrc.tgac.miso.core.util.jackson.LibraryRecursionAvoidanceMixin;
 import uk.ac.bbsrc.tgac.miso.core.util.jackson.SampleProjectAvoidanceMixin;
 import uk.ac.bbsrc.tgac.miso.core.util.jackson.UserInfoMixin;
-import uk.ac.bbsrc.tgac.miso.webapp.util.RestUtils;
+import uk.ac.bbsrc.tgac.miso.service.SampleGroupService;
+import uk.ac.bbsrc.tgac.miso.webapp.controller.rest.RestException;
+
+import com.eaglegenomics.simlims.core.User;
 
 /**
  * A controller to handle all REST requests for Projects
@@ -65,70 +73,63 @@ import uk.ac.bbsrc.tgac.miso.webapp.util.RestUtils;
 @Controller
 @RequestMapping("/rest/project")
 @SessionAttributes("project")
-public class ProjectRestController {
+public class ProjectRestController extends RestController {
   protected static final Logger log = LoggerFactory.getLogger(ProjectRestController.class);
 
   @Autowired
   private RequestManager requestManager;
 
+  @Autowired
+  private SampleGroupService sampleGroupService;
+
   public void setRequestManager(RequestManager requestManager) {
     this.requestManager = requestManager;
   }
 
-  @RequestMapping(value = "/alias/{projectAlias}", method = RequestMethod.GET)
+  @RequestMapping(value = "/alias/{projectAlias}", method = RequestMethod.GET, produces = "application/json")
   public @ResponseBody String getProjectByAlias(@PathVariable String projectAlias) throws IOException {
-    try {
-      Project project = requestManager.getProjectByAlias(projectAlias);
-      if (project != null) {
-        return getProjectById(project.getId());
-      }
-      return RestUtils.error("No such project with that alias.", "projectAlias", projectAlias).toString();
-    } catch (IOException ioe) {
-      log.error("cannot retrieve project", ioe);
-      return RestUtils.error("Cannot retrieve project: " + ioe.getMessage(), "projectAlias", projectAlias).toString();
+    Project project = requestManager.getProjectByAlias(projectAlias);
+    if (project == null) {
+      throw new RestException("No project found with alias: " + projectAlias, Status.NOT_FOUND);
     }
+    return getProjectById(project.getId());
   }
 
-  @RequestMapping(value = "{projectId}", method = RequestMethod.GET)
+  @RequestMapping(value = "{projectId}", method = RequestMethod.GET, produces = "application/json")
   public @ResponseBody String getProjectById(@PathVariable Long projectId) throws IOException {
     ObjectMapper mapper = new ObjectMapper();
-    try {
-      Project project = requestManager.getProjectById(projectId);
-      if (project != null) {
-        for (Sample s : project.getSamples()) {
-          if (s.getLibraries().isEmpty()) {
-            for (Library l : requestManager.listAllLibrariesBySampleId(s.getId())) {
-              try {
-                s.addLibrary(l);
-              } catch (MalformedLibraryException e) {
-                log.error("get project by id", e);
-              }
-            }
-          }
-
-          if (s.getSampleQCs().isEmpty()) {
-            for (SampleQC qc : requestManager.listAllSampleQCsBySampleId(s.getId())) {
-              try {
-                s.addQc(qc);
-              } catch (MalformedSampleQcException e) {
-                log.error("get project by id", e);
-              }
-            }
+    Project project = requestManager.getProjectById(projectId);
+    if (project == null) {
+      throw new RestException("No project found with ID: " + projectId, Status.NOT_FOUND);
+    }
+    for (Sample s : project.getSamples()) {
+      if (s.getLibraries().isEmpty()) {
+        for (Library l : requestManager.listAllLibrariesBySampleId(s.getId())) {
+          try {
+            s.addLibrary(l);
+          } catch (MalformedLibraryException e) {
+            log.error("get project by id", e);
           }
         }
-        mapper.getSerializationConfig().addMixInAnnotations(Sample.class, SampleProjectAvoidanceMixin.class);
-        mapper.getSerializationConfig().addMixInAnnotations(Library.class, LibraryRecursionAvoidanceMixin.class);
-        mapper.getSerializationConfig().addMixInAnnotations(User.class, UserInfoMixin.class);
-        return mapper.writeValueAsString(project);
       }
-      return mapper.writeValueAsString(RestUtils.error("No such project with that ID.", "projectId", projectId.toString()));
-    } catch (IOException ioe) {
-      log.error("cannot retrieve project", ioe);
-      return mapper.writeValueAsString(RestUtils.error("Cannot retrieve project: " + ioe.getMessage(), "projectId", projectId.toString()));
+
+      if (s.getSampleQCs().isEmpty()) {
+        for (SampleQC qc : requestManager.listAllSampleQCsBySampleId(s.getId())) {
+          try {
+            s.addQc(qc);
+          } catch (MalformedSampleQcException e) {
+            log.error("get project by id", e);
+          }
+        }
+      }
     }
+    mapper.getSerializationConfig().addMixInAnnotations(Sample.class, SampleProjectAvoidanceMixin.class);
+    mapper.getSerializationConfig().addMixInAnnotations(Library.class, LibraryRecursionAvoidanceMixin.class);
+    mapper.getSerializationConfig().addMixInAnnotations(User.class, UserInfoMixin.class);
+    return mapper.writeValueAsString(project);
   }
 
-  @RequestMapping(value = "{projectId}/libraries", method = RequestMethod.GET)
+  @RequestMapping(value = "{projectId}/libraries", method = RequestMethod.GET, produces = "application/json")
   public @ResponseBody String getProjectLibraries(@PathVariable Long projectId) throws IOException {
     Collection<Library> lp = requestManager.listAllLibrariesByProjectId(projectId);
     for (Library l : lp) {
@@ -156,7 +157,7 @@ public class ProjectRestController {
     return mapper.writeValueAsString(lp);
   }
 
-  @RequestMapping(method = RequestMethod.GET)
+  @RequestMapping(method = RequestMethod.GET, produces = "application/json")
   public @ResponseBody String listAllProjects() throws IOException {
     Collection<Project> lp = requestManager.listAllProjects();
     for (Project p : lp) {
@@ -170,4 +171,16 @@ public class ProjectRestController {
     mapper.getSerializationConfig().addMixInAnnotations(User.class, UserInfoMixin.class);
     return mapper.writeValueAsString(lp);
   }
+
+  @RequestMapping(value = "{id}/groups", method = RequestMethod.GET, produces = { "application/json" })
+  @ResponseBody
+  public Collection<Integer> getProjectSampleGroups(@PathVariable("id") Long id, UriComponentsBuilder uriBuilder, HttpServletResponse response)
+      throws IOException {
+    Set<Integer> groups = new HashSet<>();
+    for (SampleGroupId sgi : sampleGroupService.getAllForProject(id)) {
+      groups.add(sgi.getGroupId());
+    }
+    return groups;
+  }
+
 }

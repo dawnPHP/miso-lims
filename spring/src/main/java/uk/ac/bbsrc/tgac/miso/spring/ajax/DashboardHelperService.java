@@ -29,7 +29,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.servlet.http.HttpSession;
 
@@ -308,11 +310,11 @@ public class DashboardHelperService {
       List<Library> libraries;
       StringBuilder b = new StringBuilder();
       if (!isStringEmptyOrNull(searchStr)) {
-        if (LimsUtils.isBase64String(searchStr)) {
-          // Base64-encoded string, most likely a barcode image beeped in. decode and search
-          searchStr = new String(Base64.decodeBase64(searchStr));
-        }
         libraries = new ArrayList<Library>(requestManager.listAllLibrariesBySearch(searchStr));
+        if (libraries.isEmpty()) {
+          // Base64-encoded string, most likely a barcode image beeped in. decode and search
+          libraries = new ArrayList<Library>(requestManager.listAllLibrariesBySearch(new String(Base64.decodeBase64(searchStr))));
+        }
       } else {
         libraries = new ArrayList<Library>(requestManager.listAllLibrariesWithLimit(50));
       }
@@ -343,11 +345,10 @@ public class DashboardHelperService {
       List<Sample> samples;
       StringBuilder b = new StringBuilder();
       if (!isStringEmptyOrNull(searchStr)) {
-        if (LimsUtils.isBase64String(searchStr)) {
-          // Base64-encoded string, most likely a barcode image beeped in. decode and search
-          searchStr = new String(Base64.decodeBase64(searchStr));
-        }
         samples = new ArrayList<>(requestManager.listAllSamplesBySearch(searchStr));
+        if (samples.isEmpty()) {
+          samples = new ArrayList<>(requestManager.listAllSamplesBySearch(new String(Base64.decodeBase64(searchStr))));
+        }
       } else {
         samples = new ArrayList<>(requestManager.listAllSamplesWithLimit(50));
       }
@@ -444,7 +445,8 @@ public class DashboardHelperService {
           b.append("</div>");
         }
       } else {
-        return JSONUtils.SimpleJSONError("Failed: You do not have access to view system level alerts");
+        log.debug(String.format("The user '%s' cannot view the system alerts. Only the admin may do this. This is not an error.",
+            SecurityContextHolder.getContext().getAuthentication().getName()));
       }
     } catch (IOException e) {
       log.error("get system alerts", e);
@@ -497,15 +499,19 @@ public class DashboardHelperService {
       StringBuilder b = new StringBuilder();
       Collection<Sample> samples = requestManager.listAllSamplesByReceivedDate(100);
 
+      Set<Long> uniqueProjects = new HashSet<>();
+
       if (samples.size() > 0) {
         for (Sample s : samples) {
-          if (s.getReceivedDate() != null) {
+          if (s.getReceivedDate() != null && !uniqueProjects.contains(s.getProject().getId())) {
             b.append("<a class=\"dashboardresult\" href=\"/miso/project/" + s.getProject().getId()
                 + "\"><div  onMouseOver=\"this.className=&#39dashboardhighlight&#39\" onMouseOut=\"this.className=&#39dashboard&#39\" class=\"dashboard\">");
             b.append("Name: <b>" + s.getProject().getName() + "</b><br/>");
             b.append("Alias: <b>" + s.getProject().getAlias() + "</b><br/>");
             b.append("Last Received: <b>" + LimsUtils.getDateAsString(s.getReceivedDate()) + "</b><br/>");
             b.append("</div>");
+
+            uniqueProjects.add(s.getProject().getId());
           }
         }
       } else {

@@ -46,6 +46,9 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import net.sourceforge.fluxion.ajax.Ajaxified;
 import net.sourceforge.fluxion.ajax.util.JSONUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import uk.ac.bbsrc.tgac.miso.core.data.Experiment;
 import uk.ac.bbsrc.tgac.miso.core.data.Kit;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.kit.ClusterKit;
@@ -176,7 +179,7 @@ public class ExperimentControllerHelperService {
         KitDescriptor kitDescriptor = requestManager.getKitDescriptorByPartNumber(partNumber);
         if (kitDescriptor != null) {
           Map<String, Object> m = new HashMap<String, Object>();
-          m.put("id", kitDescriptor.getKitDescriptorId());
+          m.put("id", kitDescriptor.getId());
           m.put("name", kitDescriptor.getName());
           return JSONUtils.JSONObjectResponse(m);
         }
@@ -202,7 +205,7 @@ public class ExperimentControllerHelperService {
         int count = 0;
         for (KitDescriptor k : kits) {
           if (e.getPlatform().getPlatformType().equals(k.getPlatformType())) {
-            lkits.append("{'name':'" + k.getName() + "', 'id':'" + k.getKitDescriptorId() + "', 'partNumber':'" + k.getPartNumber() + "'}");
+            lkits.append("{'name':'" + k.getName() + "', 'id':'" + k.getId() + "', 'partNumber':'" + k.getPartNumber() + "'}");
             if (count < kits.size()) lkits.append(",");
             count++;
           }
@@ -218,7 +221,7 @@ public class ExperimentControllerHelperService {
           for (KitDescriptor k : mkitds) {
             if (e.getPlatform().getPlatformType().equals(k.getPlatformType())) {
               mkits.append(
-                  "{'name':'" + k.getName() + "', 'id':'" + k.getKitDescriptorId() + "', 'partNumber':'" + k.getPartNumber() + "'}");
+                  "{'name':'" + k.getName() + "', 'id':'" + k.getId() + "', 'partNumber':'" + k.getPartNumber() + "'}");
               if (count < mkitds.size()) mkits.append(",");
               count++;
             }
@@ -285,7 +288,7 @@ public class ExperimentControllerHelperService {
         int count = 0;
         for (KitDescriptor k : kits) {
           if (e.getPlatform().getPlatformType().equals(k.getPlatformType())) {
-            sb.append("{'name':'" + k.getName() + "', 'id':'" + k.getKitDescriptorId() + "', 'partNumber':'" + k.getPartNumber() + "'}");
+            sb.append("{'name':'" + k.getName() + "', 'id':'" + k.getId() + "', 'partNumber':'" + k.getPartNumber() + "'}");
             if (count < kits.size()) sb.append(",");
             count++;
           }
@@ -347,7 +350,7 @@ public class ExperimentControllerHelperService {
         int count = 0;
         for (KitDescriptor k : kits) {
           if (e.getPlatform().getPlatformType().equals(k.getPlatformType())) {
-            sb.append("{'name':'" + k.getName() + "', 'id':'" + k.getKitDescriptorId() + "', 'partNumber':'" + k.getPartNumber() + "'}");
+            sb.append("{'name':'" + k.getName() + "', 'id':'" + k.getId() + "', 'partNumber':'" + k.getPartNumber() + "'}");
             if (count < kits.size()) sb.append(",");
             count++;
           }
@@ -409,7 +412,7 @@ public class ExperimentControllerHelperService {
         int count = 0;
         for (KitDescriptor k : kits) {
           if (e.getPlatform().getPlatformType().equals(k.getPlatformType())) {
-            sb.append("{'name':'" + k.getName() + "', 'id':'" + k.getKitDescriptorId() + "', 'partNumber':'" + k.getPartNumber() + "'}");
+            sb.append("{'name':'" + k.getName() + "', 'id':'" + k.getId() + "', 'partNumber':'" + k.getPartNumber() + "'}");
             if (count < kits.size()) sb.append(",");
             count++;
           }
@@ -463,10 +466,13 @@ public class ExperimentControllerHelperService {
       JSONObject j = new JSONObject();
       JSONArray jsonArray = new JSONArray();
       for (Experiment experiment : requestManager.listAllExperiments()) {
-        jsonArray.add("['" + experiment.getName() + "','" + experiment.getAlias() + "','" + experiment.getDescription() + "','"
-            + experiment.getPlatform().getPlatformType().getKey() + " " + experiment.getPlatform().getInstrumentModel() + "','"
-            + "<a href=\"/miso/experiment/" + experiment.getId() + "\"><span class=\"ui-icon ui-icon-pencil\"></span></a>" + "']");
+        JSONArray inner = new JSONArray();
+        inner.add(TableHelper.hyperLinkify("/miso/experiment/" + experiment.getId(), experiment.getName()));
+        inner.add(TableHelper.hyperLinkify("/miso/experiment/" + experiment.getId(), experiment.getAlias()));
+        inner.add(experiment.getDescription());
+        inner.add(experiment.getPlatform().getPlatformType().getKey() + " " + experiment.getPlatform().getInstrumentModel());
 
+        jsonArray.add(inner);
       }
       j.put("experimentsArray", jsonArray);
       return j;

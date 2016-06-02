@@ -28,7 +28,7 @@
       <sessionConversation:insertSessionConversationId attributeName="kitDescriptor"/>
 
       <h1><c:choose><c:when
-          test="${kitDescriptor.kitDescriptorId != 0}">Edit</c:when><c:otherwise>Create</c:otherwise></c:choose>
+          test="${kitDescriptor.id != 0}">Edit</c:when><c:otherwise>Create</c:otherwise></c:choose>
         Kit Descriptor
         <button type="submit" class="fg-button ui-state-default ui-corner-all">Save</button>
       </h1>
@@ -43,7 +43,7 @@
           <td class="h">ID:</td>
           <td>
             <c:choose>
-              <c:when test="${kitDescriptor.kitDescriptorId != 0}">${kitDescriptor.kitDescriptorId}</c:when>
+              <c:when test="${kitDescriptor.id != 0}">${kitDescriptor.id}</c:when>
               <c:otherwise><i>Unsaved</i></c:otherwise>
             </c:choose>
           </td>
@@ -69,8 +69,12 @@
           <td><form:input path="stockLevel"/></td>
         </tr>
         <tr>
+          <td class="h">Description:</td>
+          <td><form:input path="description"/><span id="descriptionCounter" class="counter"></span></td>
+        </tr>
+        <tr>
           <c:choose>
-            <c:when test="${kitDescriptor.kitDescriptorId == 0 or empty kitDescriptor.kitType}">
+            <c:when test="${kitDescriptor.id == 0 or empty kitDescriptor.kitType}">
               <td>Kit Type:</td>
               <td>
                 <form:select id="kitTypes" path="kitType" items="${kitTypes}"/>
@@ -84,10 +88,12 @@
         </tr>
         <tr>
           <c:choose>
-            <c:when test="${kitDescriptor.kitDescriptorId == 0 or empty kitDescriptor.platformType}">
+            <c:when test="${kitDescriptor.id == 0 or empty kitDescriptor.platformType}">
               <td>Platform Type:</td>
               <td>
-                <form:select id="platformTypes" path="platformType" items="${platformTypes}"/>
+                <form:select id="platformTypes" path="platformType">
+                  <form:options items="${platformTypes}" itemValue="key" itemLabel="key"/>
+                </form:select>
               </td>
             </c:when>
             <c:otherwise>
@@ -98,6 +104,28 @@
         </tr>
       </table>
     </form:form>
+    <c:if test="${not empty kitDescriptor.changeLog}">
+      <br/>
+      <h1>Changes</h1>
+      <span style="clear:both">
+        <table class="list" id="changelog_table">
+          <thead>
+          <tr>
+            <th>Summary</th>
+            <th>Time</th>
+          </tr>
+          </thead>
+          <tbody>
+          <c:forEach items="${kitDescriptor.changeLog}" var="change">
+            <tr onMouseOver="this.className='highlightrow'" onMouseOut="this.className='normalrow'">
+              <td><b>${change.summary}</b></td>
+              <td>${change.time}</td>
+            </tr>
+          </c:forEach>
+          </tbody>
+        </table>
+      </span>
+    </c:if>
   </div>
 </div>
 
@@ -121,6 +149,12 @@
       counter: '#partNumberCounter',
       countType: 'characters',
       maxCount: ${maxLengths['partNumber']},
+      countDirection: 'down'
+    });
+    jQuery('#description').simplyCountable({
+      counter: '#descriptionCounter',
+      countType: 'characters',
+      maxCount: ${maxLengths['description']},
       countDirection: 'down'
     });
   });

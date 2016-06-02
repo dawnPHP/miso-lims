@@ -35,11 +35,13 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 
+import uk.ac.bbsrc.tgac.miso.core.data.AbstractPlatform;
 import uk.ac.bbsrc.tgac.miso.core.data.Platform;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.PlatformImpl;
 import uk.ac.bbsrc.tgac.miso.core.data.type.PlatformType;
 import uk.ac.bbsrc.tgac.miso.core.factory.DataObjectFactory;
 import uk.ac.bbsrc.tgac.miso.core.store.PlatformStore;
+import uk.ac.bbsrc.tgac.miso.core.util.CoverageIgnore;
 
 /**
  * uk.ac.bbsrc.tgac.miso.sqlstore
@@ -72,14 +74,17 @@ public class SQLPlatformDAO implements PlatformStore {
   @Autowired
   private DataObjectFactory dataObjectFactory;
 
+  @CoverageIgnore
   public void setDataObjectFactory(DataObjectFactory dataObjectFactory) {
     this.dataObjectFactory = dataObjectFactory;
   }
 
+  @CoverageIgnore
   public JdbcTemplate getJdbcTemplate() {
     return template;
   }
 
+  @CoverageIgnore
   public void setJdbcTemplate(JdbcTemplate template) {
     this.template = template;
   }
@@ -93,17 +98,17 @@ public class SQLPlatformDAO implements PlatformStore {
     params.addValue("description", platform.getDescription());
     params.addValue("numContainers", platform.getNumContainers());
 
-    if (platform.getPlatformId() == null) {
+    if (platform.getId() == AbstractPlatform.UNSAVED_ID) {
       SimpleJdbcInsert insert = new SimpleJdbcInsert(template).withTableName(TABLE_NAME).usingGeneratedKeyColumns("platformId");
       Number newId = insert.executeAndReturnKey(params);
-      platform.setPlatformId(newId.longValue());
+      platform.setId(newId.longValue());
     } else {
-      params.addValue("platformId", platform.getPlatformId());
+      params.addValue("platformId", platform.getId());
       NamedParameterJdbcTemplate namedTemplate = new NamedParameterJdbcTemplate(template);
       namedTemplate.update(PLATFORM_UPDATE, params);
     }
 
-    return platform.getPlatformId();
+    return platform.getId();
   }
 
   @Override
@@ -122,8 +127,8 @@ public class SQLPlatformDAO implements PlatformStore {
   }
 
   @Override
-  public List<Platform> listByName() {
-    List results = template.query(PLATFORMS_SELECT_BY_NAME, new PlatformMapper());
+  public List<Platform> listByName(String name) {
+    List results = template.query(PLATFORMS_SELECT_BY_NAME, new Object[] { name }, new PlatformMapper());
     return results;
   }
 
@@ -148,9 +153,10 @@ public class SQLPlatformDAO implements PlatformStore {
 
   public class PlatformMapper implements RowMapper<Platform> {
     @Override
+    @CoverageIgnore
     public Platform mapRow(ResultSet rs, int rowNum) throws SQLException {
       Platform p = new PlatformImpl();
-      p.setPlatformId(rs.getLong("platformId"));
+      p.setId(rs.getLong("platformId"));
       p.setPlatformType(PlatformType.get(rs.getString("name")));
       p.setDescription(rs.getString("description"));
       p.setInstrumentModel(rs.getString("instrumentModel"));

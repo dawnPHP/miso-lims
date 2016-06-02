@@ -44,6 +44,7 @@ import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
@@ -64,8 +65,13 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.SortedSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -77,6 +83,15 @@ import org.slf4j.LoggerFactory;
 
 import com.eaglegenomics.simlims.core.SecurityProfile;
 
+import uk.ac.bbsrc.tgac.miso.core.data.PoolOrderCompletionGroup;
+import uk.ac.bbsrc.tgac.miso.core.data.Pool;
+import uk.ac.bbsrc.tgac.miso.core.data.PoolOrder;
+import uk.ac.bbsrc.tgac.miso.core.data.PoolOrderCompletion;
+import uk.ac.bbsrc.tgac.miso.core.data.Sample;
+import uk.ac.bbsrc.tgac.miso.core.data.SampleClass;
+import uk.ac.bbsrc.tgac.miso.core.data.SampleValidRelationship;
+import uk.ac.bbsrc.tgac.miso.core.data.SequencingParameters;
+import uk.ac.bbsrc.tgac.miso.core.data.type.HealthType;
 import uk.ac.bbsrc.tgac.miso.core.security.SecurableByProfile;
 
 /**
@@ -89,8 +104,6 @@ public class LimsUtils {
   public static final long SYSTEM_USER_ID = 0;
 
   protected static final Logger log = LoggerFactory.getLogger(LimsUtils.class);
-
-  private static final Pattern p = Pattern.compile("^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})$");
 
   public static String unicodeify(String barcode) {
     log.debug("ORIGINAL :: " + barcode);
@@ -107,12 +120,6 @@ public class LimsUtils {
     }
     log.debug("UNICODED :: " + b.toString());
     return b.toString();
-  }
-
-  public static boolean isBase64String(String base64) {
-    // nasty 20-character length hack for base64 strings.
-    // just have to hope that people don't generally search for 4-mer 20+ length strings very often
-    return base64.length() > 20 && p.matcher(base64).matches();
   }
 
   public static boolean isUrlValid(URL url) {
@@ -786,4 +793,88 @@ public class LimsUtils {
     SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
     return sdf.format(new Date());
   }
+
+  public static boolean isValidRelationship(Iterable<SampleValidRelationship> relations, Sample parent, Sample child) {
+    if (parent == null && child.getSampleAdditionalInfo() == null) {
+      return true; // Simple sample has no relationships.
+    }
+    if (child.getSampleAdditionalInfo() == null) {
+      return false;
+    }
+    if (parent.getSampleAdditionalInfo() == null) {
+      return false;
+    }
+    return isValidRelationship(relations, parent.getSampleAdditionalInfo().getSampleClass(),
+        child.getSampleAdditionalInfo().getSampleClass());
+  }
+
+  public static boolean isValidRelationship(Iterable<SampleValidRelationship> relations, SampleClass parent, SampleClass child) {
+    for (SampleValidRelationship relation : relations) {
+      if (relation.getParent().getId() == parent.getId() && relation.getChild().getId() == child.getId()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static double round(double value, int numberOfDigitsAfterDecimalPoint) {
+    BigDecimal bigDecimal = new BigDecimal(value);
+    bigDecimal = bigDecimal.setScale(numberOfDigitsAfterDecimalPoint, BigDecimal.ROUND_HALF_UP);
+    return bigDecimal.doubleValue();
+  }
+
+  public static SortedSet<HealthType> getUsedHealthTypes(Iterable<PoolOrderCompletion> completions) {
+    SortedSet<HealthType> healths = new TreeSet<>(HealthType.COMPARATOR);
+    addUsedHealthTypes(completions, healths);
+    return healths;
+  }
+
+  public static void addUsedHealthTypes(Iterable<PoolOrderCompletion> completions, SortedSet<HealthType> healths) {
+    for (PoolOrderCompletion completion : completions) {
+      healths.add(completion.getHealth());
+    }
+  }
+
+  public static Map<Pool<?>, Map<SequencingParameters, PoolOrderCompletionGroup>> groupCompletions(Iterable<PoolOrderCompletion> completions) {
+    Map<Pool<?>, Map<SequencingParameters, PoolOrderCompletionGroup>> poolGroups = new TreeMap<>();
+    for (PoolOrderCompletion completion : completions) {
+      Map<SequencingParameters, PoolOrderCompletionGroup> parametersGroup;
+      if (poolGroups.containsKey(completion.getPool())) {
+        parametersGroup = poolGroups.get(completion.getPool());
+      } else {
+        parametersGroup = new HashMap<>();
+        poolGroups.put(completion.getPool(), parametersGroup);
+      }
+      PoolOrderCompletionGroup groupedCompletions;
+      if (parametersGroup.containsKey(completion.getSequencingParameters())) {
+        groupedCompletions = parametersGroup.get(completion.getSequencingParameters());
+      } else {
+        groupedCompletions = new PoolOrderCompletionGroup();
+        parametersGroup.put(completion.getSequencingParameters(), groupedCompletions);
+      }
+      groupedCompletions.add(completion);
+    }
+    return poolGroups;
+  }
+
+  public static Map<Pool<?>, Map<SequencingParameters, PoolOrderCompletionGroup>> filterUnfulfilledCompletions(
+      Map<Pool<?>, Map<SequencingParameters, PoolOrderCompletionGroup>> groups) {
+    Map<Pool<?>, Map<SequencingParameters, PoolOrderCompletionGroup>> poolGroups = new TreeMap<>();
+    for (Entry<Pool<?>, Map<SequencingParameters, PoolOrderCompletionGroup>> poolEntry : groups.entrySet()) {
+      for (Entry<SequencingParameters, PoolOrderCompletionGroup> parameterEntry : poolEntry.getValue().entrySet()) {
+        if (parameterEntry.getValue().getRemaining() < 1) continue;
+
+        Map<SequencingParameters, PoolOrderCompletionGroup> parametersGroup = null;
+        if (poolGroups.containsKey(poolEntry.getKey())) {
+          parametersGroup = poolGroups.get(poolEntry.getKey());
+        } else {
+          parametersGroup = new HashMap<>();
+          poolGroups.put(poolEntry.getKey(), parametersGroup);
+        }
+        parametersGroup.put(parameterEntry.getKey(), parameterEntry.getValue());
+      }
+    }
+    return poolGroups;
+  }
+
 }

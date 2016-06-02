@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +36,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
@@ -48,11 +50,17 @@ import org.springframework.web.bind.annotation.SessionAttributes;
 import org.springframework.web.bind.support.SessionStatus;
 import org.springframework.web.servlet.ModelAndView;
 
+import com.eaglegenomics.simlims.core.User;
+import com.eaglegenomics.simlims.core.manager.SecurityManager;
+
+import net.sf.json.JSONArray;
 import uk.ac.bbsrc.tgac.miso.core.data.AbstractPool;
 import uk.ac.bbsrc.tgac.miso.core.data.ChangeLog;
 import uk.ac.bbsrc.tgac.miso.core.data.Dilution;
 import uk.ac.bbsrc.tgac.miso.core.data.Experiment;
+import uk.ac.bbsrc.tgac.miso.core.data.Platform;
 import uk.ac.bbsrc.tgac.miso.core.data.Pool;
+import uk.ac.bbsrc.tgac.miso.core.data.PoolOrderCompletion;
 import uk.ac.bbsrc.tgac.miso.core.data.Poolable;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.LibraryDilution;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.PoolImpl;
@@ -61,12 +69,11 @@ import uk.ac.bbsrc.tgac.miso.core.exception.MalformedDilutionException;
 import uk.ac.bbsrc.tgac.miso.core.factory.DataObjectFactory;
 import uk.ac.bbsrc.tgac.miso.core.manager.RequestManager;
 import uk.ac.bbsrc.tgac.miso.core.security.util.LimsSecurityUtils;
-import uk.ac.bbsrc.tgac.miso.sqlstore.util.DbUtils;
-import uk.ac.bbsrc.tgac.miso.webapp.context.ApplicationContextProvider;
-import uk.ac.bbsrc.tgac.miso.webapp.util.MisoPropertyExporter;
-
-import com.eaglegenomics.simlims.core.User;
-import com.eaglegenomics.simlims.core.manager.SecurityManager;
+import uk.ac.bbsrc.tgac.miso.core.util.LimsUtils;
+import uk.ac.bbsrc.tgac.miso.dto.Dtos;
+import uk.ac.bbsrc.tgac.miso.dto.SequencingParametersDto;
+import uk.ac.bbsrc.tgac.miso.service.PoolOrderCompletionService;
+import uk.ac.bbsrc.tgac.miso.service.SequencingParametersService;
 
 /**
  * uk.ac.bbsrc.tgac.miso.webapp.controller
@@ -83,6 +90,9 @@ public class EditPoolController {
   protected static final Logger log = LoggerFactory.getLogger(EditPoolController.class);
 
   @Autowired
+  private SequencingParametersService sequencingParametersService;
+
+  @Autowired
   private SecurityManager securityManager;
 
   @Autowired
@@ -90,9 +100,12 @@ public class EditPoolController {
 
   @Autowired
   private DataObjectFactory dataObjectFactory;
-  
+
   @Autowired
   private JdbcTemplate interfaceTemplate;
+
+  @Autowired
+  private PoolOrderCompletionService poolOrderCompletionService;
 
   public void setInterfaceTemplate(JdbcTemplate interfaceTemplate) {
     this.interfaceTemplate = interfaceTemplate;
@@ -120,17 +133,27 @@ public class EditPoolController {
     return PlatformType.getKeys();
   }
 
+  @ModelAttribute("libraryDilutionUnits")
+  public String libraryDilutionUnits() {
+    return LibraryDilution.UNITS;
+  }
+
+  @ModelAttribute("poolConcentrationUnits")
+  public String poolConcentrationUnits() {
+    return AbstractPool.CONCENTRATION_UNITS;
+  }
+
+  @Value("${miso.autoGenerateIdentificationBarcodes}")
+  private Boolean autoGenerateIdBarcodes;
+
   @ModelAttribute("autoGenerateIdBarcodes")
   public Boolean autoGenerateIdentificationBarcodes() {
-    MisoPropertyExporter exporter = (MisoPropertyExporter) ApplicationContextProvider.getApplicationContext().getBean("propertyConfigurer");
-    Map<String, String> misoProperties = exporter.getResolvedProperties();
-    return misoProperties.containsKey("miso.autoGenerateIdentificationBarcodes")
-        && Boolean.parseBoolean(misoProperties.get("miso.autoGenerateIdentificationBarcodes"));
+    return autoGenerateIdBarcodes;
   }
-  
+
   @ModelAttribute("maxLengths")
   public Map<String, Integer> maxLengths() throws IOException {
-    return DbUtils.getColumnSizes(interfaceTemplate, "Pool");
+    return requestManager.getPoolColumnSizes();
   }
 
   private List<? extends Dilution> populateAvailableDilutions(Pool pool) throws IOException {
@@ -205,6 +228,11 @@ public class EditPoolController {
       model.put("owners", LimsSecurityUtils.getPotentialOwners(user, pool, securityManager.listAllUsers()));
       model.put("accessibleUsers", LimsSecurityUtils.getAccessibleUsers(user, pool, securityManager.listAllUsers()));
       model.put("accessibleGroups", LimsSecurityUtils.getAccessibleGroups(user, pool, securityManager.listAllGroups()));
+      model.put("platforms", getFilteredPlatforms(pool.getPlatformType()));
+      Collection<PoolOrderCompletion> completions = poolOrderCompletionService.getOrderCompletionForPool(poolId);
+      model.put("ordercompletionheadings", LimsUtils.getUsedHealthTypes(completions));
+      model.put("ordercompletions", LimsUtils.groupCompletions(completions).get(pool));
+
       return new ModelAndView("/pages/editPool.jsp", model);
     } catch (IOException ex) {
       if (log.isDebugEnabled()) {
@@ -248,6 +276,9 @@ public class EditPoolController {
       model.put("owners", LimsSecurityUtils.getPotentialOwners(user, pool, securityManager.listAllUsers()));
       model.put("accessibleUsers", LimsSecurityUtils.getAccessibleUsers(user, pool, securityManager.listAllUsers()));
       model.put("accessibleGroups", LimsSecurityUtils.getAccessibleGroups(user, pool, securityManager.listAllGroups()));
+      model.put("platforms", getFilteredPlatforms(pool.getPlatformType()));
+      model.put("ordercompletions", poolOrderCompletionService.getOrderCompletionForPool(poolId));
+
       return new ModelAndView("/pages/editPool.jsp", model);
     } catch (IOException ex) {
       if (log.isDebugEnabled()) {
@@ -255,6 +286,24 @@ public class EditPoolController {
       }
       throw ex;
     }
+  }
+
+  private Collection<Platform> getFilteredPlatforms(PlatformType platformType) throws IOException {
+    List<Platform> selected = new ArrayList<>();
+    for (Platform p : requestManager.listAllPlatforms()) {
+      if (p.getPlatformType() == platformType) {
+        selected.add(p);
+      }
+    }
+    Collections.sort(selected, new Comparator<Platform>() {
+
+      @Override
+      public int compare(Platform o1, Platform o2) {
+        return o1.getNameAndModel().compareTo(o2.getNameAndModel());
+      }
+
+    });
+    return selected;
   }
 
   @Deprecated
@@ -287,6 +336,8 @@ public class EditPoolController {
       model.put("owners", LimsSecurityUtils.getPotentialOwners(user, pool, securityManager.listAllUsers()));
       model.put("accessibleUsers", LimsSecurityUtils.getAccessibleUsers(user, pool, securityManager.listAllUsers()));
       model.put("accessibleGroups", LimsSecurityUtils.getAccessibleGroups(user, pool, securityManager.listAllGroups()));
+      model.put("platforms", getFilteredPlatforms(pool.getPlatformType()));
+
       return new ModelAndView("/pages/editPool.jsp", model);
     } catch (IOException ex) {
       if (log.isDebugEnabled()) {
@@ -319,7 +370,7 @@ public class EditPoolController {
     return "redirect:/miso/pool/" + p.getId();
   }
 
-  @RequestMapping(value = { "/new", "/{poolId}" }, method = RequestMethod.POST)
+  @RequestMapping(method = RequestMethod.POST)
   public String processSubmit(@ModelAttribute("pool") Pool<? extends Poolable> pool, ModelMap model, SessionStatus session)
       throws IOException {
     try {
@@ -339,5 +390,14 @@ public class EditPoolController {
       }
       throw ex;
     }
+  }
+
+  @ModelAttribute
+  public void addSequencingParameters(ModelMap model) throws IOException {
+    Collection<SequencingParametersDto> sequencingParameters = Dtos.asSequencingParametersDtos(sequencingParametersService.getAll());
+    model.put("sequencingParameters", sequencingParameters);
+    JSONArray array = new JSONArray();
+    array.addAll(sequencingParameters);
+    model.put("sequencingParametersJson", array.toString());
   }
 }

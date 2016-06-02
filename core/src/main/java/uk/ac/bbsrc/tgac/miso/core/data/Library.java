@@ -26,6 +26,7 @@ package uk.ac.bbsrc.tgac.miso.core.data;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 
 import org.codehaus.jackson.annotate.JsonIgnoreProperties;
 import org.codehaus.jackson.annotate.JsonTypeName;
@@ -53,31 +54,14 @@ import uk.ac.bbsrc.tgac.miso.core.security.SecurableByProfile;
  * @author Rob Davey
  * @since 0.0.2
  */
-@JsonSerialize(typing = JsonSerialize.Typing.STATIC, include = JsonSerialize.Inclusion.NON_NULL)//, using = LibrarySerializer.class)
+@JsonSerialize(typing = JsonSerialize.Typing.STATIC, include = JsonSerialize.Inclusion.NON_NULL) // , using = LibrarySerializer.class)
 @JsonTypeName("library")
-@JsonIgnoreProperties({"securityProfile"})
+@JsonIgnoreProperties({ "securityProfile" })
 @PrintableBarcode
 public interface Library extends SecurableByProfile, Comparable, Barcodable, Locatable, Deletable, Plateable, Boxable {
 
   /** Field PREFIX */
   public static final String PREFIX = "LIB";
-
-  /**
-   * Returns the libraryId of this Library object.
-   * 
-   * @return Long libraryId.
-   */
-  @Deprecated
-  public Long getLibraryId();
-
-  /**
-   * Sets the libraryId of this Library object.
-   * 
-   * @param libraryId
-   *          libraryId.
-   */
-  @Deprecated
-  public void setLibraryId(Long libraryId);
 
   public void setId(long id);
 
@@ -244,36 +228,14 @@ public interface Library extends SecurableByProfile, Comparable, Barcodable, Loc
   public void setLibraryStrategyType(LibraryStrategyType libraryStrategyType);
 
   /**
-   * Returns the position-indexed map of TagBarcodes for this Library object.
-   * 
-   * @return Map<Integer, TagBarcode> tagBarcodes
+   * Returns the position-indexed list of TagBarcodes for this Library object.
    */
-  public HashMap<Integer, TagBarcode> getTagBarcodes();
+  public List<TagBarcode> getTagBarcodes();
 
   /**
-   * Sets the position-indexed map of TagBarcodes for this Library object.
-   * 
-   * @param tagBarcodes
-   *          Map<Integer, TagBarcode>.
+   * Sets the position-indexed list of TagBarcodes for this Library object.
    */
-  public void setTagBarcodes(HashMap<Integer, TagBarcode> tagBarcodes);
-
-  /**
-   * Returns the TagBarcode of this Library object, if this Library is multiplexed
-   * 
-   * @return TagBarcode tagBarcode.
-   */
-  @Deprecated
-  public TagBarcode getTagBarcode();
-
-  /**
-   * Sets the TagBarcode of this Library object.
-   * 
-   * @param tagBarcode
-   *          TagBarcode.
-   */
-  @Deprecated
-  public void setTagBarcode(TagBarcode tagBarcode);
+  public void setTagBarcodes(List<TagBarcode> tagBarcodes);
 
   /**
    * Returns the platformName of this Library object.
@@ -375,4 +337,10 @@ public interface Library extends SecurableByProfile, Comparable, Barcodable, Loc
   public void setLowQuality(boolean lowquality);
 
   public boolean isLowQuality();
+
+  public LibraryAdditionalInfo getLibraryAdditionalInfo();
+
+  public void setLibraryAdditionalInfo(LibraryAdditionalInfo libraryAdditionalInfo);
+
+  public TagBarcodeFamily getCurrentFamily();
 }

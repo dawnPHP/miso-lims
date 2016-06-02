@@ -24,6 +24,8 @@
 package uk.ac.bbsrc.tgac.miso.core.data.impl.kit;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
 
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -31,7 +33,12 @@ import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.Table;
+import javax.persistence.Transient;
 
+import com.eaglegenomics.simlims.core.User;
+
+import uk.ac.bbsrc.tgac.miso.core.data.ChangeLog;
 import uk.ac.bbsrc.tgac.miso.core.data.type.KitType;
 import uk.ac.bbsrc.tgac.miso.core.data.type.PlatformType;
 
@@ -43,7 +50,10 @@ import uk.ac.bbsrc.tgac.miso.core.data.type.PlatformType;
  * @since 0.0.2
  */
 @Entity
+@Table(name = "KitDescriptor")
 public class KitDescriptor implements Serializable {
+
+  private static final long serialVersionUID = 1L;
 
   /** Field UNSAVED_ID */
   public static final Long UNSAVED_ID = 0L;
@@ -56,6 +66,11 @@ public class KitDescriptor implements Serializable {
   private String manufacturer = "";
   private String partNumber = "";
   private Integer stockLevel = 0;
+  private String description = "";
+  @Transient
+  private Collection<ChangeLog> changelog = new ArrayList<>();
+  @Transient
+  private User lastModifier;
 
   @Enumerated(EnumType.STRING)
   private KitType kitType;
@@ -68,7 +83,7 @@ public class KitDescriptor implements Serializable {
    * 
    * @return Long kitDescriptorId.
    */
-  public Long getKitDescriptorId() {
+  public Long getId() {
     return kitDescriptorId;
   }
 
@@ -78,7 +93,7 @@ public class KitDescriptor implements Serializable {
    * @param kitDescriptorId
    *          kitDescriptorId.
    */
-  public void setKitDescriptorId(Long kitDescriptorId) {
+  public void setId(Long kitDescriptorId) {
     this.kitDescriptorId = kitDescriptorId;
   }
 
@@ -103,7 +118,7 @@ public class KitDescriptor implements Serializable {
 
   /**
    * Returns the version of this KitDescriptor object.
-   * 
+   *
    * @return Double version.
    */
   public Double getVersion() {
@@ -178,6 +193,25 @@ public class KitDescriptor implements Serializable {
   }
 
   /**
+   * Sets the description of this KitDescriptor object.
+   *
+   * @param description
+   *          description.
+   */
+  public void setDescription(String description) {
+    this.description = description;
+  }
+
+  /**
+   * Returns the description of this KitDescriptor object.
+   *
+   * @return String description.
+   */
+  public String getDescription() {
+    return description;
+  }
+
+  /**
    * Returns the kitType of this KitDescriptor object.
    * 
    * @return KitType kitType.
@@ -216,6 +250,18 @@ public class KitDescriptor implements Serializable {
     this.platformType = platformType;
   }
 
+  public Collection<ChangeLog> getChangeLog() {
+    return changelog;
+  }
+
+  public User getLastModifier() {
+    return lastModifier;
+   }
+
+  public void setLastModifier(User lastModifier) {
+    this.lastModifier = lastModifier;
+  }
+
   /**
    * Method toString ...
    * 
@@ -224,7 +270,7 @@ public class KitDescriptor implements Serializable {
   @Override
   public String toString() {
     StringBuffer sb = new StringBuffer();
-    sb.append(getKitDescriptorId());
+    sb.append(getId());
     sb.append(" : ");
     sb.append(getName());
     sb.append(" : ");
@@ -235,6 +281,8 @@ public class KitDescriptor implements Serializable {
     sb.append(getPlatformType());
     sb.append(" : ");
     sb.append(getStockLevel());
+    sb.append(" : ");
+    sb.append(getDescription());
     return sb.toString();
   }
 }

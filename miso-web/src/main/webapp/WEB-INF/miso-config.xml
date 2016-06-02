@@ -41,6 +41,8 @@
     <constructor-arg index="1" ref="securityManager" />
     <property name="backingManager" ref="backingRequestManager" />
   </bean>
+  
+  <bean id="authorizationManager" class="uk.ac.bbsrc.tgac.miso.service.security.DefaultAuthorizationManager" />
 
   <bean id="backingRequestManager" class="uk.ac.bbsrc.tgac.miso.core.manager.MisoRequestManager" />
 
@@ -50,11 +52,7 @@
 
   <bean id="multipartResolver" class="uk.ac.bbsrc.tgac.miso.spring.ajax.multipart.AjaxMultipartResolver">
     <property name="maxUploadSize" value="10000000" />
-    <!--<property name="fileUploadListener" ref="multipartUploadListener"/> -->
-  </bean>
-
-  <bean id="fileUploadController" class="uk.ac.bbsrc.tgac.miso.webapp.controller.UploadController">
-    <property name="filesManager" ref="misoFileManager" />
+    <property name="fileUploadListener" ref="multipartUploadListener"/>
   </bean>
 
   <bean id="fileDownloadController" class="uk.ac.bbsrc.tgac.miso.webapp.controller.DownloadController">
@@ -77,15 +75,11 @@
 
   <bean name="issueTrackerManager" class="uk.ac.bbsrc.tgac.miso.core.manager.DummyIssueTrackerManager" />
 
-  <bean name="tagBarcodeStrategyResolverService" class="uk.ac.bbsrc.tgac.miso.core.service.tagbarcode.TagBarcodeStrategyResolverService">
-    <property name="requestManager" ref="requestManager" />
-  </bean>
-
   <bean id="entityNamingSchemeResolverService" name="entityNamingSchemeResolverService" class="uk.ac.bbsrc.tgac.miso.core.service.naming.MisoEntityNamingSchemeResolverService" />
 
-  <bean id="namingScheme" name="namingScheme" class="uk.ac.bbsrc.tgac.miso.core.service.naming.DefaultEntityNamingScheme" />
-  <bean id="sampleNamingScheme" name="sampleNamingScheme" class="uk.ac.bbsrc.tgac.miso.core.service.naming.DefaultSampleNamingScheme" />
-  <bean id="libraryNamingScheme" name="libraryNamingScheme" class="uk.ac.bbsrc.tgac.miso.core.service.naming.DefaultLibraryNamingScheme" />
+  <bean id="namingScheme" name="namingScheme" class="uk.ac.bbsrc.tgac.miso.core.service.naming.DefaultEntityNamingScheme"/>
+  <bean id="sampleNamingScheme" name="sampleNamingScheme" class="uk.ac.bbsrc.tgac.miso.core.service.naming.${miso.naming.scheme.sample}"/>
+  <bean id="libraryNamingScheme" name="libraryNamingScheme" class="uk.ac.bbsrc.tgac.miso.core.service.naming.${miso.naming.scheme.library}"/>
 
   <bean id="nameGeneratorResolverService" name="nameGeneratorResolverService" class="uk.ac.bbsrc.tgac.miso.core.service.naming.MisoNameGeneratorResolverService" />
 

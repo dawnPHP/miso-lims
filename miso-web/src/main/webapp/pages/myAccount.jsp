@@ -56,7 +56,9 @@
             <a href="javascript:void(0);" onclick="flushAllCaches();">Flush All Caches</a><br/>
             <a href="javascript:void(0);" onclick="viewCacheStats();">Flush Cache...</a><br/>
             <a href="javascript:void(0);" onclick="viewCacheStats();">View Cache Stats</a><br/>
+          <c:if test="${autoGenerateIdBarcodes}">
             <a href="javascript:void(0);" onclick="regenAllBarcodes();">Regenerate All Barcodes</a><br/>
+          </c:if>
             <a href="javascript:void(0);" onclick="reindexAlertManagers();">Reindex Alert Managers</a>
           </div>
         </div>
@@ -99,6 +101,25 @@
           <a href="<c:url value='/miso/flexreports'/>">Reports</a><br/>
         </div>
       </div>
+      <c:if test="${detailedSample}">
+      <sec:authorize access="hasRole('ROLE_ADMIN')">
+        <div class="portlet">
+          <div class="portlet-header">Institute Defaults</div>
+          <div class="portlet-content">
+            <a href="<c:url value='/miso/admin/instituteDefaults#tissueorigin'/>">Tissue Origins</a><br/>
+            <a href="<c:url value='/miso/admin/instituteDefaults#tissuetype'/>">Tissue Types</a><br/>
+            <a href="<c:url value='/miso/admin/instituteDefaults#tissuematerial'/>">Tissue Materials</a><br/>
+            <a href="<c:url value='/miso/admin/instituteDefaults#samplepurpose'/>">Sample Purposes</a><br/>
+            <a href="<c:url value='/miso/admin/instituteDefaults#qcpasseddetail'/>">QC Details</a><br/>
+            <a href="<c:url value='/miso/admin/instituteDefaults#subproject'/>">Subprojects</a><br/>
+            <a href="<c:url value='/miso/admin/instituteDefaults#institute'/>">Institutes</a><br/>
+            <a href="<c:url value='/miso/admin/instituteDefaults#lab'/>">Labs</a><br/>
+            <a href="<c:url value='/miso/admin/instituteDefaults#sampleclass'/>">Sample Classes</a><br/>
+            <a href="<c:url value='/miso/admin/instituteDefaults#samplevalidrelationship'/>">Relationships between Sample Classes</a>
+          </div>
+        </div>
+      </sec:authorize>
+      </c:if>
     </div>
 
     <div class="column">
@@ -125,58 +146,6 @@
     </div>
   </div>
 </div>
-
-<style type="text/css">
-  .column {
-    width: 50%;
-    float: left;
-    padding-bottom: 100px;
-    margin-top: 4px;
-  }
-
-  .portlet {
-    margin: 0 1em 1em 0;
-  }
-
-  .portlet-header {
-    margin: 0.3em;
-    padding-bottom: 4px;
-    padding-left: 0.2em;
-  }
-
-  .portlet-header .ui-icon {
-    float: right;
-  }
-
-  .portlet-content {
-    padding: 0.4em;
-  }
-
-  .ui-sortable-placeholder {
-    border: 1px dotted black;
-    visibility: visible !important;
-    height: 50px !important;
-  }
-
-  .ui-sortable-placeholder * {
-    visibility: hidden;
-  }
-
-  .ui-widget-header {
-    -moz-background-clip: border;
-    -moz-background-inline-policy: continuous;
-    -moz-background-origin: padding;
-    background: #F0F0FF none repeat scroll 0 0;
-    border: 1px solid #AAAAAA;
-    color: #666666;
-    font-weight: bold;
-  }
-
-  .ui-widget {
-    font-family: Verdana, Arial, sans-serif;
-    font-size: 1em;
-  }
-</style>
 
 <script type="text/javascript">
   jQuery(document).ready(function () {

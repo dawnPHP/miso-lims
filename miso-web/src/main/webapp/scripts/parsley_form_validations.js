@@ -24,7 +24,9 @@
 var Validate = Validate || {
   // Attach a Parsley instance to the given form
   attachParsley: function (formSelector) {
-    if (jQuery(formSelector).length > 0) jQuery(formSelector).parsley();
+    if (jQuery(formSelector).length > 0) {
+      jQuery(formSelector).parsley();
+    }
     window.Parsley.on('parsley:field:validate', function () {
       Validate.updateWarningorSubmit(formSelector);
     });
@@ -40,7 +42,6 @@ var Validate = Validate || {
   // Update warning message and submit if form is valid
   updateWarningOrSubmit: function (formSelector, extraValidationsFunction) {
     if (jQuery(formSelector).parsley().isValid()) {
-      jQuery('.bs-callout-info').removeClass('hidden');
       jQuery('.bs-callout-warning').addClass('hidden');
       // submit if form is valid
       if (extraValidationsFunction) { 
@@ -49,7 +50,6 @@ var Validate = Validate || {
         jQuery(formSelector).submit();
       }
     } else {
-      jQuery('.bs-callout-info').addClass('hidden');
       jQuery('.bs-callout-warning').removeClass('hidden');
       return false;
     }

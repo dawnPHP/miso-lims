@@ -33,18 +33,18 @@
 <link rel="stylesheet" href="<c:url value='/scripts/jquery/datatables/css/jquery.dataTables.css'/>" type="text/css">
 <link rel="stylesheet" href="<c:url value='/scripts/jquery/datatables/css/jquery.dataTables_themeroller.css'/>"
       type="text/css">
-<script src="<c:url value='/scripts/datatables_utils.js?ts=${timestamp.time}'/>" type="text/javascript"></script>
-<script src="<c:url value='/scripts/natural_sort.js?ts=${timestamp.time}'/>" type="text/javascript"></script>
+<script src="<c:url value='/scripts/datatables_utils.js'/>" type="text/javascript"></script>
+<script src="<c:url value='/scripts/natural_sort.js'/>" type="text/javascript"></script>
 
 <script type="text/javascript" src="<c:url value='/scripts/parsley/parsley.min.js'/>"></script>
 
 <div id="maincontent">
 <div id="contentcolumn">
-<form:form id="pool-form" data-parsley-validate="" method="POST" commandName="pool" autocomplete="off">
+<form:form id="pool-form" data-parsley-validate="" action="/miso/pool" method="POST" commandName="pool" autocomplete="off">
 <sessionConversation:insertSessionConversationId attributeName="pool"/>
 <h1><c:choose><c:when
     test="${pool.id != 0}">Edit</c:when><c:otherwise>Create</c:otherwise></c:choose> Pool
-  <button type="submit" onclick="return Pool.validatePool();" class="fg-button ui-state-default ui-corner-all">Save</button>
+  <button type="button" onclick="return Pool.validatePool();" class="fg-button ui-state-default ui-corner-all">Save</button>
 </h1>
 <div class="sectionDivider" onclick="Utils.ui.toggleLeftInfo(jQuery('#note_arrowclick'), 'notediv');">Quick Help
   <div id="note_arrowclick" class="toggleLeft"></div>
@@ -64,25 +64,27 @@
 <div class="barcodes">
   <div class="barcodeArea ui-corner-all">
     <span style="float: left; font-size: 24px; font-weight: bold; color:#BBBBBB">ID</span>
-    <ul class="barcode-ddm">
-      <li>
-        <a onmouseover="mopen('idBarcodeMenu')" onmouseout="mclosetime()">
-          <span style="float:right; margin-top:6px;" class="ui-icon ui-icon-triangle-1-s"></span>
-          <span id="idBarcode" style="float:right"></span>
-        </a>
+    <c:if test="${pool.id != 0}">
+      <ul class="barcode-ddm">
+        <li>
+          <a onmouseover="mopen('idBarcodeMenu')" onmouseout="mclosetime()">
+            <span style="float:right; margin-top:6px;" class="ui-icon ui-icon-triangle-1-s"></span>
+            <span id="idBarcode" style="float:right"></span>
+          </a>
 
-        <div id="idBarcodeMenu"
-             onmouseover="mcancelclosetime()"
-             onmouseout="mclosetime()">
-          <a href="javascript:void(0);" 
-             onclick="Pool.barcode.printPoolBarcodes(${pool.id});">Print</a>
-          <c:if test="${not autoGenerateIdBarcodes}">
+          <div id="idBarcodeMenu"
+               onmouseover="mcancelclosetime()"
+               onmouseout="mclosetime()">
             <a href="javascript:void(0);"
-             onclick="Pool.barcode.showPoolIdBarcodeChangeDialog(${pool.id}, '${pool.identificationBarcode}');">Assign New Barcode</a>
-          </c:if>
-        </div>
-      </li>
-    </ul>
+               onclick="Pool.barcode.printPoolBarcodes(${pool.id});">Print</a>
+            <c:if test="${not autoGenerateIdBarcodes}">
+              <a href="javascript:void(0);"
+               onclick="Pool.barcode.showPoolIdBarcodeChangeDialog(${pool.id}, '${pool.identificationBarcode}');">Assign New Barcode</a>
+            </c:if>
+          </div>
+        </li>
+      </ul>
+    </c:if>
     <div id="changePoolIdBarcodeDialog" title="Assign New Barcode"></div>
     <c:if test="${not empty pool.identificationBarcode}">
       <script type="text/javascript">
@@ -114,6 +116,13 @@
     </td>
   </tr>
   <tr>
+    <td class="h">Location:</td>
+    <td>
+      <c:if test="${!empty pool.boxLocation}">${pool.boxLocation},</c:if>
+      <c:if test="${!empty pool.boxPosition}"><a href='<c:url value="/miso/box/${pool.boxId}"/>'>${pool.boxAlias}, ${pool.boxPosition}</a></c:if>
+    </td>
+  </tr>
+  <tr>
     <td class="h">Name:</td>
     <td>
       <c:choose>
@@ -140,7 +149,7 @@
     </td>
   </tr>
   <tr>
-    <td class="h">Desired Concentration:*</td>
+    <td class="h">Desired Concentration (${poolConcentrationUnits}):*</td>
     <td><form:input id="concentration" path="concentration"/></td>
   </tr>
   <tr>
@@ -165,6 +174,15 @@
     <td class="h">Ready To Run</td>
     <td><form:checkbox path="readyToRun"/></td>
   </tr>
+  
+  <tr>
+    <td>Volume (&#181;l):</td>
+    <td><form:input id="volume" path="volume"/></td>
+  </tr>
+  <tr>
+    <td>Emptied:</td>
+    <td><form:checkbox id="empty" path="empty"/></td>
+  </tr>
 
 </table>
 <%@ include file="permissions.jsp" %>
@@ -176,6 +194,50 @@
     Validate.attachParsley('#pool-form');
   });
 </script>
+
+<!--notes start -->
+<c:if test="${pool.id != 0}">
+    <div class="sectionDivider" onclick="Utils.ui.toggleLeftInfo(jQuery('#notes_arrowclick'), 'notes');">Notes
+      <div id="notes_arrowclick" class="toggleLeftDown"></div>
+    </div>
+    <div id="notes">
+      <h1>Notes</h1>
+      <ul class="sddm">
+        <li>
+          <a onmouseover="mopen('notesmenu')" onmouseout="mclosetime()">Options
+            <span style="float:right" class="ui-icon ui-icon-triangle-1-s"></span>
+          </a>
+
+          <div id="notesmenu"
+               onmouseover="mcancelclosetime()"
+               onmouseout="mclosetime()">
+            <a onclick="Pool.ui.showPoolNoteDialog(${pool.id});" href="javascript:void(0);" class="add">Add Note</a>
+          </div>
+        </li>
+      </ul>
+      <c:if test="${fn:length(pool.notes) > 0}">
+        <div class="note" style="clear:both">
+          <c:forEach items="${pool.notes}" var="note" varStatus="n">
+            <div class="exppreview" id="pool-notes-${n.count}">
+              <b>${note.creationDate}</b>: ${note.text}
+              <span class="float-right" style="font-weight:bold; color:#C0C0C0;">${note.owner.loginName}</span>
+                <c:if test="${(note.owner.loginName eq SPRING_SECURITY_CONTEXT.authentication.principal.username)
+                                or fn:contains(SPRING_SECURITY_CONTEXT.authentication.principal.authorities,'ROLE_ADMIN')}">
+                  <span style="color:#000000">
+                    <a href='#' onclick="Pool.ui.deletePoolNote('${pool.id}', '${note.noteId}');">
+                      <span class="ui-icon ui-icon-trash" style="clear: both; position: relative; float: right; margin-top: -15px;"></span>
+                    </a>
+                  </span>
+                </c:if>
+            </div>
+          </c:forEach>
+        </div>
+      </c:if>
+      <div id="addPoolNoteDialog" title="Create new Note"></div>
+    </div>
+    <br/>
+</c:if>
+<!-- notes end -->
 
 <c:if test="${pool.id != 0}">
   <h1>
@@ -286,6 +348,51 @@
 </table>
 <br/>
 
+<c:if test="${pool.id != 0}">
+  <h1>Orders</h1>
+
+  <div class="note">
+    <div id="orderlist" class="elementList ui-corner-all">
+    </div>
+    <form id="neworder">
+      Partitions: <input type="text" name="partitions" value="1" id="newOrderParitions" /><br/>
+      Platform: <select id="newOrderPlatformId" onchange="Pool.orders.changePlatform(null)"><c:forEach items="${platforms}" var="platform"><option value="${platform.id}">${platform.nameAndModel}</option></c:forEach></select><br/>
+      Sequencing Parameters: <select id="newOrderParameterId"><c:forEach items="${sequencingParameters}" var="sp"><option value="${sp.id}">${sp.name}</option></c:forEach></select><br/>
+      <input type="submit" class="br-button ui-state-default ui-corner-all" value="Add" onclick="return Pool.orders.addOrder(${pool.id})"/>
+    </form>
+  </div>
+  <c:if test="${not empty ordercompletions}">
+  <br/>
+    <h1>Order Completion</h1>
+    <span style="clear:both">
+      <table class="list" id="changelog_table">
+        <thead>
+        <tr>
+          <th>Platform</th>
+          <th>Parameters</th>
+          <c:forEach items="${ordercompletionheadings}" var="heading">
+            <th>${heading.key}</th>
+          </c:forEach>
+          <th>Remaining</th>
+        </tr>
+        </thead>
+        <tbody>
+        <c:forEach items="${ordercompletions}" var="parameterGroup">
+          <tr onMouseOver="this.className='highlightrow'" onMouseOut="this.className='normalrow'">
+            <td>${parameterGroup.key.platform.nameAndModel}</td>
+            <td>${parameterGroup.key.name}</td>
+            <c:forEach items="${ordercompletionheadings}" var="heading">
+              <td>${parameterGroup.value[heading].numPartitions}</td>
+            </c:forEach>
+            <td>${parameterGroup.value.getRemaining()}</td>
+          </tr>
+        </c:forEach>
+        </tbody>
+      </table>
+    </span>
+  </c:if>
+</c:if>
+
 <h1>Pooled Elements</h1>
 
 <div class="note">
@@ -367,10 +474,10 @@
     jQuery(document).ready(function () {
         <c:choose>
         <c:when test="${pool.id != 0}">
-        Pool.ui.createElementSelectDatatable('${pool.platformType.key}');
+        Pool.ui.createElementSelectDatatable('${pool.platformType.key}', '${libraryDilutionUnits}');
         </c:when>
         <c:otherwise>
-        Pool.ui.createElementSelectDatatable('Illumina');
+        Pool.ui.createElementSelectDatatable('Illumina', '${libraryDilutionUnits}');
         </c:otherwise>
         </c:choose>
     });
@@ -461,6 +568,10 @@
       countDirection: 'down'
     });
   });
+  Defaults = { 'all': {}};
+  Defaults.all.sequencingParameters = ${sequencingParametersJson};
+  Defaults.all.platforms = [ <c:forEach items="${platforms}" var="platform">{ 'id' : ${platform.id}, 'nameAndModel' : '${platform.nameAndModel}'}, </c:forEach> ];
+  Pool.orders.loadOrders(${pool.id});
 </script>
 
 <%@ include file="adminsub.jsp" %>

@@ -23,24 +23,27 @@
 
 package uk.ac.bbsrc.tgac.miso.core.data;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.Set;
 import java.util.TreeSet;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.ManyToMany;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.MappedSuperclass;
 import javax.persistence.OneToOne;
-import javax.persistence.Table;
 import javax.persistence.Transient;
 
+import org.codehaus.jackson.annotate.JsonManagedReference;
+import org.hibernate.annotations.Cascade;
+import org.hibernate.annotations.CascadeType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -49,10 +52,18 @@ import com.eaglegenomics.simlims.core.Note;
 import com.eaglegenomics.simlims.core.SecurityProfile;
 import com.eaglegenomics.simlims.core.User;
 
+import uk.ac.bbsrc.tgac.miso.core.data.impl.IdentityImpl;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.ProjectImpl;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.SampleAdditionalInfoImpl;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.SampleAnalyteImpl;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.SampleImpl;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.SampleTissueImpl;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.UserImpl;
 import uk.ac.bbsrc.tgac.miso.core.exception.MalformedLibraryException;
 import uk.ac.bbsrc.tgac.miso.core.exception.MalformedSampleException;
 import uk.ac.bbsrc.tgac.miso.core.exception.MalformedSampleQcException;
 import uk.ac.bbsrc.tgac.miso.core.security.SecurableByProfile;
+import uk.ac.bbsrc.tgac.miso.core.util.LimsUtils;
 
 /**
  * Skeleton implementation of a Sample
@@ -60,36 +71,39 @@ import uk.ac.bbsrc.tgac.miso.core.security.SecurableByProfile;
  * @author Rob Davey
  * @since 0.0.2
  */
-@Entity
-@Table(name = "`Sample`")
+@MappedSuperclass
 public abstract class AbstractSample extends AbstractBoxable implements Sample {
+
   protected static final Logger log = LoggerFactory.getLogger(AbstractSample.class);
   public static final Long UNSAVED_ID = 0L;
-  private static final long serialVersionUID = 1L;
 
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
   private long sampleId = AbstractSample.UNSAVED_ID;
 
+  @ManyToOne(targetEntity = ProjectImpl.class)
   private Project project;
 
-  @ManyToMany(targetEntity = AbstractExperiment.class, mappedBy = "samples")
+  @Transient
   private final Collection<Experiment> experiments = new HashSet<Experiment>();
 
+  @Transient
+  @JsonManagedReference
   private final Collection<Library> libraries = new HashSet<Library>();
 
+  @Transient
   private Collection<SampleQC> sampleQCs = new TreeSet<SampleQC>();
 
+  @Transient
   private Collection<Note> notes = new HashSet<Note>();
 
+  @Transient
   private final Collection<ChangeLog> changeLog = new ArrayList<>();
-
-  private Set<Plate<? extends LinkedList<Sample>, Sample>> plates = new HashSet<Plate<? extends LinkedList<Sample>, Sample>>();
 
   @Transient
   public Document submissionDocument;
 
-  @OneToOne(cascade = CascadeType.ALL)
+  @Transient
   private SecurityProfile securityProfile = null;
 
   private String accession;
@@ -103,9 +117,27 @@ public abstract class AbstractSample extends AbstractBoxable implements Sample {
   private String identificationBarcode;
   private String locationBarcode;
   private String alias;
-  private Date lastUpdated;
+  private Long securityProfile_profileId;
+
+  @OneToOne(targetEntity = UserImpl.class)
+  @JoinColumn(name = "lastModifier", nullable = false)
   private User lastModifier;
-  private boolean empty;
+
+  @OneToOne(targetEntity = SampleAnalyteImpl.class, mappedBy = "sample")
+  @Cascade({ CascadeType.ALL })
+  private SampleAnalyte sampleAnalyte;
+
+  @OneToOne(targetEntity = SampleTissueImpl.class, mappedBy = "sample")
+  @Cascade({ CascadeType.ALL })
+  private SampleTissue sampleTissue;
+
+  @OneToOne(targetEntity = IdentityImpl.class, mappedBy = "sample")
+  @Cascade({ CascadeType.ALL })
+  private Identity identity;
+
+  @OneToOne(targetEntity = SampleAdditionalInfoImpl.class, mappedBy = "sample")
+  @Cascade({ CascadeType.ALL })
+  private SampleAdditionalInfo sampleAdditionalInfo;
 
   @Override
   public User getLastModifier() {
@@ -125,18 +157,6 @@ public abstract class AbstractSample extends AbstractBoxable implements Sample {
   @Override
   public void setProject(Project project) {
     this.project = project;
-  }
-
-  @Override
-  @Deprecated
-  public Long getSampleId() {
-    return sampleId;
-  }
-
-  @Override
-  @Deprecated
-  public void setSampleId(Long sampleId) {
-    this.sampleId = sampleId;
   }
 
   @Override
@@ -197,6 +217,16 @@ public abstract class AbstractSample extends AbstractBoxable implements Sample {
   @Override
   public void setTaxonIdentifier(String taxonIdentifier) {
     this.taxonIdentifier = taxonIdentifier;
+  }
+
+  @Override
+  public String getAlias() {
+    return alias;
+  }
+
+  @Override
+  public void setAlias(String alias) {
+    this.alias = alias;
   }
 
   @Override
@@ -311,29 +341,6 @@ public abstract class AbstractSample extends AbstractBoxable implements Sample {
   }
 
   @Override
-  public Set<Plate<? extends LinkedList<Sample>, Sample>> getPlates() {
-    return plates;
-  }
-
-  public void addPlate(Plate<? extends LinkedList<Sample>, Sample> plate) {
-    this.plates.add(plate);
-  }
-
-  public void setPlates(Set<Plate<? extends LinkedList<Sample>, Sample>> plates) {
-    this.plates = plates;
-  }
-
-  @Override
-  public Date getLastUpdated() {
-    return lastUpdated;
-  }
-
-  @Override
-  public void setLastUpdated(Date lastUpdated) {
-    this.lastUpdated = lastUpdated;
-  }
-
-  @Override
   public boolean isDeletable() {
     return getId() != AbstractSample.UNSAVED_ID && getLibraries().isEmpty() && getNotes().isEmpty() && getSampleQCs().isEmpty();
   }
@@ -346,6 +353,9 @@ public abstract class AbstractSample extends AbstractBoxable implements Sample {
   @Override
   public void setSecurityProfile(SecurityProfile securityProfile) {
     this.securityProfile = securityProfile;
+    if (securityProfile != null) {
+      this.securityProfile_profileId = securityProfile.getProfileId();
+    }
   }
 
   @Override
@@ -372,6 +382,19 @@ public abstract class AbstractSample extends AbstractBoxable implements Sample {
 
   @Override
   public abstract void buildReport();
+
+  @Override
+  public SampleAdditionalInfo getSampleAdditionalInfo() {
+    return sampleAdditionalInfo;
+  }
+
+  @Override
+  public void setSampleAdditionalInfo(SampleAdditionalInfo sampleAdditionalInfo) {
+    this.sampleAdditionalInfo = sampleAdditionalInfo;
+    if (sampleAdditionalInfo != null) {
+      sampleAdditionalInfo.setSample(this);
+    }
+  }
 
   /**
    * Equivalency is based on getSampleId() if set, otherwise on name, otherwise on alias
@@ -441,4 +464,301 @@ public abstract class AbstractSample extends AbstractBoxable implements Sample {
 
     return sb.toString();
   }
+
+  @Override
+  public SampleAnalyte getSampleAnalyte() {
+    return sampleAnalyte;
+  }
+
+  @Override
+  public void setSampleAnalyte(SampleAnalyte sampleAnalyte) {
+    this.sampleAnalyte = sampleAnalyte;
+    if (sampleAnalyte != null) {
+      sampleAnalyte.setSample(this);
+    }
+  }
+
+  @Override
+  public Identity getIdentity() {
+    return identity;
+  }
+
+  @Override
+  public void setIdentity(Identity identity) {
+    this.identity = identity;
+    if (identity != null) {
+      identity.setSample(this);
+    }
+  }
+
+  @Override
+  public Sample getParent() {
+    return sampleAdditionalInfo == null ? null : sampleAdditionalInfo.getParent();
+  }
+
+  @Override
+  public Set<Sample> getChildren() {
+    return sampleAdditionalInfo == null ? null : sampleAdditionalInfo.getChildren();
+  }
+
+  @Override
+  public Long getSecurityProfileId() {
+    return securityProfile_profileId;
+  }
+
+  @Override
+  public void setSecurityProfileId(Long securityProfileId) {
+    securityProfile_profileId = securityProfileId;
+  }
+
+  @Override
+  public SampleTissue getSampleTissue() {
+    return sampleTissue;
+  }
+
+  @Override
+  public void setSampleTissue(SampleTissue sampleTissue) {
+    this.sampleTissue = sampleTissue;
+    if (sampleTissue != null) {
+      sampleTissue.setSample(this);
+    }
+  }
+
+  public static class SampleFactoryBuilder {
+    private String description;
+    private String sampleType;
+    private Project project;
+    private String scientificName;
+
+    /** User is needed to create a SecurityProfile. */
+    private User user;
+
+    private SampleAdditionalInfo sampleAdditionalInfo;
+    private Identity identity;
+    private SampleAnalyte sampleAnalyte;
+    private SampleTissue sampleTissue;
+    private String accession;
+    private String name;
+    private String identificationBarcode;
+    private String locationBarcode;
+    private Date receivedDate;
+    private Boolean qcPassed;
+    private String alias;
+    private String taxonIdentifier;
+    private SampleClass rootSampleClass;
+    private Sample parent;
+    private Double volume;
+
+    public SampleFactoryBuilder parent(Sample parent) {
+      this.parent = parent;
+      return this;
+    }
+
+    public SampleFactoryBuilder rootSampleClass(SampleClass rootSampleClass) {
+      this.rootSampleClass = rootSampleClass;
+      return this;
+    }
+
+    public SampleFactoryBuilder identity(Identity identity) {
+      this.identity = identity;
+      return this;
+    }
+
+    public SampleFactoryBuilder sampleAnalyte(SampleAnalyte sampleAnalyte) {
+      this.sampleAnalyte = sampleAnalyte;
+      return this;
+    }
+
+    public SampleFactoryBuilder accession(String accession) {
+      this.accession = accession;
+      return this;
+    }
+
+    public SampleFactoryBuilder name(String name) {
+      this.name = name;
+      return this;
+    }
+
+    public SampleFactoryBuilder identificationBarcode(String identificationBarcode) {
+      this.identificationBarcode = identificationBarcode;
+      return this;
+    }
+
+    public SampleFactoryBuilder locationBarcode(String locationBarcode) {
+      this.locationBarcode = locationBarcode;
+      return this;
+    }
+
+    public SampleFactoryBuilder receivedDate(Date receivedDate) {
+      this.receivedDate = receivedDate;
+      return this;
+    }
+
+    public SampleFactoryBuilder qcPassed(Boolean qcPassed) {
+      this.qcPassed = qcPassed;
+      return this;
+    }
+
+    public SampleFactoryBuilder alias(String alias) {
+      this.alias = alias;
+      return this;
+    }
+
+    public SampleFactoryBuilder taxonIdentifier(String taxonIdentifier) {
+      this.taxonIdentifier = taxonIdentifier;
+      return this;
+    }
+
+    public SampleFactoryBuilder volume(Double volume) {
+      this.volume = volume;
+      return this;
+    }
+
+    public Identity getIdentity() {
+      return identity;
+    }
+
+    public String getDescription() {
+      return description;
+    }
+
+    public String getSampleType() {
+      return sampleType;
+    }
+
+    public Project getProject() {
+      return project;
+    }
+
+    public String getScientificName() {
+      return scientificName;
+    }
+
+    public User getUser() {
+      return user;
+    }
+
+    public Double getVolume() {
+      return volume;
+    }
+
+    public Sample getParent() {
+      return parent;
+    }
+
+    public SampleAdditionalInfo getSampleAdditionalInfo() {
+      return sampleAdditionalInfo;
+    }
+
+    public SampleFactoryBuilder description(String description) {
+      this.description = description;
+      return this;
+    }
+
+    public SampleFactoryBuilder sampleType(String sampleType) {
+      this.sampleType = sampleType;
+      return this;
+    }
+
+    public SampleFactoryBuilder project(Project project) {
+      this.project = project;
+      return this;
+    }
+
+    public SampleFactoryBuilder scientificName(String scientificName) {
+      this.scientificName = scientificName;
+      return this;
+    }
+
+    public SampleFactoryBuilder user(User user) {
+      this.user = user;
+      return this;
+    }
+
+    public SampleFactoryBuilder sampleAdditionalInfo(SampleAdditionalInfo sampleAdditionalInfo) {
+      this.sampleAdditionalInfo = sampleAdditionalInfo;
+      return this;
+    }
+
+    public SampleFactoryBuilder sampleTissue(SampleTissue sampleTissue) {
+      this.sampleTissue = sampleTissue;
+      return this;
+    }
+
+    public SampleAnalyte getSampleAnalyte() {
+      return sampleAnalyte;
+    }
+
+    public String getAccession() {
+      return accession;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public String getIdentificationBarcode() {
+      return identificationBarcode;
+    }
+
+    public String getLocationBarcode() {
+      return locationBarcode;
+    }
+
+    public Date getReceivedDate() {
+      return receivedDate;
+    }
+
+    public Boolean getQcPassed() {
+      return qcPassed;
+    }
+
+    public String getAlias() {
+      return alias;
+    }
+
+    public String getTaxonIdentifier() {
+      return taxonIdentifier;
+    }
+
+    public SampleTissue getSampleTissue() {
+      return this.sampleTissue;
+    }
+
+    public Sample build() {
+      checkArgument(user != null, "A User must be provided to create a Sample.");
+      checkArgument(project != null, "A Project must be provided to create a Sample.");
+      checkArgument(!LimsUtils.isStringEmptyOrNull(description), "Must provide a description to create a Sample");
+      checkArgument(!LimsUtils.isStringEmptyOrNull(sampleType), "Must provide a sampleType to create a Sample");
+      checkArgument(!LimsUtils.isStringEmptyOrNull(scientificName), "Must provide a scientificName to create a Sample");
+
+      if (sampleAdditionalInfo == null) {
+        log.debug("Create a simple unparented MISO Sample.");
+        return new SampleImpl(this);
+      } else {
+        checkArgument(sampleAdditionalInfo != null, "SampleAdditionalInfo must be provided to create a Sample.");
+        checkArgument(sampleAdditionalInfo.getSampleClass() != null,
+            "SampleAdditionalInfo.sampleClass must be provided to create a Sample.");
+        if (identity != null) {
+          log.debug("Create an Identity Sample.");
+          checkArgument(rootSampleClass != null, "A root SampleClass must be provided to create an Identity Sample.");
+          return SampleImpl.sampleIdentity(this);
+        } else if (sampleAnalyte != null) {
+          log.debug("Create an Analyte Sample.");
+          checkArgument(parent != null, "parent must be provided to create a Sample.");
+          checkArgument(sampleAdditionalInfo.getTissueOrigin() != null,
+              "SampleAdditionalInfo.tissueOrigin must be provided to create a Sample.");
+          checkArgument(sampleAdditionalInfo.getTissueType() != null,
+              "SampleAdditionalInfo.tissueType must be provided to create a Sample.");
+          return SampleImpl.sampleAnalyte(this);
+        } else if (sampleTissue != null) {
+          return SampleImpl.sampleTissue(this);
+        } else if (sampleAdditionalInfo.getSampleClass().getSampleCategory().equals("Tissue Processing")) {
+          return SampleImpl.sampleTissueProcessing(this);
+        }
+      }
+      throw new IllegalArgumentException("No sample can be built with the specified parameters.");
+    }
+  }
+
 }

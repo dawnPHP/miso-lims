@@ -26,12 +26,14 @@ package uk.ac.bbsrc.tgac.miso.core.data.impl;
 import java.io.Serializable;
 
 import javax.persistence.Entity;
+import javax.persistence.Table;
 
 import com.eaglegenomics.simlims.core.SecurityProfile;
 import com.eaglegenomics.simlims.core.User;
 
 import uk.ac.bbsrc.tgac.miso.core.data.AbstractSample;
 import uk.ac.bbsrc.tgac.miso.core.data.Project;
+import uk.ac.bbsrc.tgac.miso.core.util.LimsUtils;
 
 /**
  * uk.ac.bbsrc.tgac.miso.core.data.impl
@@ -42,12 +44,17 @@ import uk.ac.bbsrc.tgac.miso.core.data.Project;
  * @since 0.0.2
  */
 @Entity
+@Table(name = "Sample")
 public class SampleImpl extends AbstractSample implements Serializable {
+
+  private static final long serialVersionUID = 1L;
+
   /**
    * Construct a new Sample with a default empty SecurityProfile
    */
   public SampleImpl() {
     setSecurityProfile(new SecurityProfile());
+    setSecurityProfileId(getSecurityProfile().getProfileId());
   }
 
   /**
@@ -58,6 +65,7 @@ public class SampleImpl extends AbstractSample implements Serializable {
    */
   public SampleImpl(User user) {
     setSecurityProfile(new SecurityProfile(user));
+    setSecurityProfileId(getSecurityProfile().getProfileId());
   }
 
   /**
@@ -73,9 +81,89 @@ public class SampleImpl extends AbstractSample implements Serializable {
     if (project.userCanRead(user)) {
       setProject(project);
       setSecurityProfile(project.getSecurityProfile());
+      setSecurityProfileId(getSecurityProfile().getProfileId());
     } else {
+      log.error(String.format("User %s does not have permission to read Project %s. Unable to create Sample.", user.getFullName(),
+          project.getAlias()));
       setSecurityProfile(new SecurityProfile(user));
+      setSecurityProfileId(getSecurityProfile().getProfileId());
     }
+  }
+
+  public SampleImpl(SampleFactoryBuilder builder) {
+    this(builder.getProject(), builder.getUser());
+    setDescription(builder.getDescription());
+    setSampleType(builder.getSampleType());
+    setScientificName(builder.getScientificName());
+    setLastModifier(builder.getUser());
+    setVolume(builder.getVolume());
+
+    if (!LimsUtils.isStringEmptyOrNull(builder.getAccession())) {
+      setAccession(builder.getAccession());
+    }
+    if (!LimsUtils.isStringEmptyOrNull(builder.getName())) {
+      setName(builder.getName()); // Required, but will be set later.
+    }
+    if (!LimsUtils.isStringEmptyOrNull(builder.getIdentificationBarcode())) {
+      setIdentificationBarcode(builder.getIdentificationBarcode());
+    }
+    if (!LimsUtils.isStringEmptyOrNull(builder.getLocationBarcode())) {
+      setLocationBarcode(builder.getLocationBarcode());
+    }
+    if (builder.getReceivedDate() != null) {
+      setReceivedDate(builder.getReceivedDate());
+    }
+    if (builder.getQcPassed() != null) {
+      setQcPassed(builder.getQcPassed());
+    } else {
+      setQcPassed(null);
+    }
+    if (!LimsUtils.isStringEmptyOrNull(builder.getAlias())) {
+      setAlias(builder.getAlias());
+    }
+    if (!LimsUtils.isStringEmptyOrNull(builder.getTaxonIdentifier())) {
+      setTaxonIdentifier(builder.getTaxonIdentifier());
+    }
+  }
+
+  public static SampleImpl sampleAnalyte(SampleFactoryBuilder builder) {
+    SampleImpl sampleImpl = new SampleImpl(builder);
+    sampleImpl.setSampleAdditionalInfo(builder.getSampleAdditionalInfo());
+    sampleImpl.getSampleAdditionalInfo().setParent(builder.getParent());
+    sampleImpl.getSampleAdditionalInfo().getParent().getSampleAdditionalInfo().getChildren().add(sampleImpl);
+    sampleImpl.getSampleAdditionalInfo().setSample(sampleImpl);
+    sampleImpl.setSampleAnalyte(builder.getSampleAnalyte());
+    sampleImpl.getSampleAnalyte().setSample(sampleImpl);
+    return sampleImpl;
+  }
+
+  public static SampleImpl sampleTissue(SampleFactoryBuilder builder) {
+    SampleImpl sampleImpl = new SampleImpl(builder);
+    sampleImpl.setSampleAdditionalInfo(builder.getSampleAdditionalInfo());
+    sampleImpl.getSampleAdditionalInfo().setParent(builder.getParent());
+    sampleImpl.getSampleAdditionalInfo().getParent().getSampleAdditionalInfo().getChildren().add(sampleImpl);
+    sampleImpl.getSampleAdditionalInfo().setSample(sampleImpl);
+    sampleImpl.setSampleTissue(builder.getSampleTissue());
+    sampleImpl.getSampleTissue().setSample(sampleImpl);
+    return sampleImpl;
+  }
+  
+  public static SampleImpl sampleTissueProcessing(SampleFactoryBuilder builder) {
+    SampleImpl sampleImpl = new SampleImpl(builder);
+    sampleImpl.setSampleAdditionalInfo(builder.getSampleAdditionalInfo());
+    sampleImpl.getSampleAdditionalInfo().setParent(builder.getParent());
+    sampleImpl.getSampleAdditionalInfo().getParent().getSampleAdditionalInfo().getChildren().add(sampleImpl);
+    sampleImpl.getSampleAdditionalInfo().setSample(sampleImpl);
+    return sampleImpl;
+  }
+  
+  public static SampleImpl sampleIdentity(SampleFactoryBuilder builder) {
+    SampleImpl sampleImpl = new SampleImpl(builder);
+    sampleImpl.setSampleAdditionalInfo(builder.getSampleAdditionalInfo());
+    sampleImpl.getSampleAdditionalInfo().setSample(sampleImpl);
+    sampleImpl.setIdentity(builder.getIdentity());
+    sampleImpl.getIdentity().setSample(sampleImpl);
+    return sampleImpl;
   }
 
   @Override

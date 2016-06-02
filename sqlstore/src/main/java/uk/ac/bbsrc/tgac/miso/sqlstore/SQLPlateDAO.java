@@ -35,6 +35,9 @@ import java.util.Map;
 
 import javax.persistence.CascadeType;
 
+import net.sf.ehcache.CacheManager;
+import net.sf.ehcache.Element;
+
 import org.codehaus.jackson.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,15 +48,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.eaglegenomics.simlims.core.SecurityProfile;
-import com.eaglegenomics.simlims.core.store.SecurityStore;
-import com.googlecode.ehcache.annotations.Cacheable;
-import com.googlecode.ehcache.annotations.KeyGenerator;
-import com.googlecode.ehcache.annotations.Property;
-import com.googlecode.ehcache.annotations.TriggersRemove;
-
-import net.sf.ehcache.CacheManager;
-import net.sf.ehcache.Element;
 import uk.ac.bbsrc.tgac.miso.core.data.AbstractPlate;
 import uk.ac.bbsrc.tgac.miso.core.data.Dilution;
 import uk.ac.bbsrc.tgac.miso.core.data.Library;
@@ -70,9 +64,17 @@ import uk.ac.bbsrc.tgac.miso.core.store.LibraryStore;
 import uk.ac.bbsrc.tgac.miso.core.store.PlateStore;
 import uk.ac.bbsrc.tgac.miso.core.store.SampleStore;
 import uk.ac.bbsrc.tgac.miso.core.store.Store;
+import uk.ac.bbsrc.tgac.miso.core.store.TagBarcodeStore;
 import uk.ac.bbsrc.tgac.miso.sqlstore.cache.CacheAwareRowMapper;
 import uk.ac.bbsrc.tgac.miso.sqlstore.util.DaoLookup;
 import uk.ac.bbsrc.tgac.miso.sqlstore.util.DbUtils;
+
+import com.eaglegenomics.simlims.core.SecurityProfile;
+import com.eaglegenomics.simlims.core.store.SecurityStore;
+import com.googlecode.ehcache.annotations.Cacheable;
+import com.googlecode.ehcache.annotations.KeyGenerator;
+import com.googlecode.ehcache.annotations.Property;
+import com.googlecode.ehcache.annotations.TriggersRemove;
 
 /**
  * uk.ac.bbsrc.tgac.miso.sqlstore
@@ -86,16 +88,14 @@ import uk.ac.bbsrc.tgac.miso.sqlstore.util.DbUtils;
 public class SQLPlateDAO implements PlateStore {
   private static final String TABLE_NAME = "Plate";
 
-  public static final String PLATE_SELECT = "SELECT plateId, name, description, creationDate, plateMaterialType, identificationBarcode, locationBarcode, size, tagBarcodeId, securityProfile_profileId "
+  public static final String PLATE_SELECT = "SELECT plateId, name, description, creationDate, plateMaterialType, identificationBarcode, locationBarcode, size, tagBarcodeId, securityProfile_profileId, lastModifier "
       + "FROM " + TABLE_NAME;
 
   public static final String PLATE_SELECT_BY_ID = PLATE_SELECT + " WHERE plateId = ?";
 
   public static final String PLATE_SELECT_BY_ID_BARCODE = PLATE_SELECT + " WHERE identificationBarcode = ?";
 
-  public static final String PLATE_UPDATE = "UPDATE "
-      + TABLE_NAME
-      + " "
+  public static final String PLATE_UPDATE = "UPDATE " + TABLE_NAME + " "
       + "SET plateId=:plateId, name=:name, description=:description, creationDate=:creationDate, plateMaterialType=:plateMaterialType, identificationBarcode=:identificationBarcode, locationBarcode=:locationBarcode, size=:size, tagBarcodeId=:tagBarcodeId, securityProfile_profileId=:securityProfile_profileId, lastModifier=:lastModifier "
       + "WHERE plateId=:plateId";
 
@@ -134,6 +134,8 @@ public class SQLPlateDAO implements PlateStore {
   private boolean autoGenerateIdentificationBarcodes;
   private ChangeLogStore changeLogDAO;
   private SecurityStore securityDAO;
+  @Autowired
+  private TagBarcodeStore tagBarcodeStrategyStore;
 
   @Autowired
   private DaoLookup daoLookup;
@@ -435,7 +437,7 @@ public class SQLPlateDAO implements PlateStore {
         plate.setLastModifier(securityDAO.getUserById(rs.getLong("lastModifier")));
         plate.setSecurityProfile(securityProfileDAO.get(rs.getLong("securityProfile_profileId")));
         plate.setPlateMaterialType(PlateMaterialType.get(rs.getString("plateMaterialType")));
-        plate.setTagBarcode(libraryDAO.getTagBarcodeById(rs.getLong("tagBarcodeId")));
+        plate.setTagBarcode(tagBarcodeStrategyStore.getTagBarcodeById(rs.getLong("tagBarcodeId")));
 
         if (!isLazy()) {
           plate.setElements(resolvePlateElements(plate.getId()));
@@ -502,5 +504,10 @@ public class SQLPlateDAO implements PlateStore {
 
   public void setSecurityDAO(SecurityStore securityDAO) {
     this.securityDAO = securityDAO;
+  }
+
+  @Override
+  public Map<String, Integer> getPlateColumnSizes() throws IOException {
+    return DbUtils.getColumnSizes(template, TABLE_NAME);
   }
 }

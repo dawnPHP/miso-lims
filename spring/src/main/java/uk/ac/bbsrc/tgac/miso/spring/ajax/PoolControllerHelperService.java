@@ -32,8 +32,8 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +44,11 @@ import java.util.TreeSet;
 import javax.imageio.ImageIO;
 import javax.servlet.http.HttpSession;
 
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
+import net.sourceforge.fluxion.ajax.Ajaxified;
+import net.sourceforge.fluxion.ajax.util.JSONUtils;
+
 import org.apache.commons.codec.binary.Base64;
 import org.krysalis.barcode4j.BarcodeDimension;
 import org.krysalis.barcode4j.BarcodeGenerator;
@@ -52,13 +57,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import com.eaglegenomics.simlims.core.Note;
 import com.eaglegenomics.simlims.core.User;
 import com.eaglegenomics.simlims.core.manager.SecurityManager;
 
-import net.sf.json.JSONArray;
-import net.sf.json.JSONObject;
-import net.sourceforge.fluxion.ajax.Ajaxified;
-import net.sourceforge.fluxion.ajax.util.JSONUtils;
 import uk.ac.bbsrc.tgac.miso.core.data.Barcodable;
 import uk.ac.bbsrc.tgac.miso.core.data.Dilution;
 import uk.ac.bbsrc.tgac.miso.core.data.Experiment;
@@ -87,7 +89,6 @@ import uk.ac.bbsrc.tgac.miso.core.manager.PrintManager;
 import uk.ac.bbsrc.tgac.miso.core.manager.RequestManager;
 import uk.ac.bbsrc.tgac.miso.core.service.printing.MisoPrintService;
 import uk.ac.bbsrc.tgac.miso.core.service.printing.context.PrintContext;
-import uk.ac.bbsrc.tgac.miso.core.util.LimsUtils;
 
 /**
  * uk.ac.bbsrc.tgac.miso.spring.ajax
@@ -245,11 +246,11 @@ public class PoolControllerHelperService {
     StringBuilder sb = new StringBuilder();
     sb.append("<div id='dilslist' class='checklist' style='width: 100%;'>");
     for (String s : codes) {
-      if (LimsUtils.isBase64String(s)) {
-        // Base64-encoded string, most likely a barcode image beeped in. decode and search
-        s = new String(Base64.decodeBase64(s));
-      }
       Dilution ed = requestManager.getDilutionByBarcode(s);
+      // Base64-encoded string, most likely a barcode image beeped in. decode and search
+      if (ed == null) {
+        ed = requestManager.getDilutionByBarcode(new String(Base64.decodeBase64(s)));
+      }
       if (ed != null) {
         sb.append("<span>");
         sb.append("<input type='checkbox' value='" + s + "' name='importdilslist' id='importdilslist_" + ed.getName() + "'/>");
@@ -399,7 +400,7 @@ public class PoolControllerHelperService {
       }
 
       PrintJob pj = printManager.print(thingsToPrint, mps.getName(), user);
-      return JSONUtils.SimpleJSONResponse("Job " + pj.getJobId() + " : Barcodes printed.");
+      return JSONUtils.SimpleJSONResponse("Job " + pj.getId() + " : Barcodes printed.");
     } catch (MisoPrintException e) {
       log.error("no printer of that name available", e);
       return JSONUtils.SimpleJSONError("No printer of that name available: " + e.getMessage());
@@ -707,40 +708,32 @@ public class PoolControllerHelperService {
   }
 
   public JSONObject listPoolsDataTable(HttpSession session, JSONObject json) {
-    Map<String, Set<Pool>> poolMap = new HashMap<>();
-    for (PlatformType pt : PlatformType.values()) {
-      poolMap.put(pt.getKey(), new HashSet<Pool>());
+    if (!json.has("platform")) {
+      return JSONUtils.SimpleJSONError("No platform specified");
     }
-
+    
+    PlatformType platform = PlatformType.get(json.getString("platform"));
     JSONObject j = new JSONObject();
 
-      try {
-      for (Pool pool : requestManager.listAllPools()) {
-        poolMap.get(pool.getPlatformType().getKey()).add(pool);
-      }
-
-      for (String poolType : poolMap.keySet()) {
+    try {
         JSONArray arr = new JSONArray();
-
-        for (Pool pool : poolMap.get(poolType)) {
+        for (Pool pool : requestManager.listAllPoolsByPlatform(platform)) {
           JSONArray pout = new JSONArray();
-          pout.add(pool.getName());
-          pout.add(pool.getAlias() != null ? pool.getAlias() : "");
+          pout.add(TableHelper.hyperLinkify("/miso/pool/" + pool.getId(), pool.getName()));
+          pout.add(TableHelper.hyperLinkify("/miso/pool/" + pool.getId(), pool.getAlias()));
           pout.add(pool.getCreationDate() != null ? pool.getCreationDate().toString() : "");
           pout.add(pool.getId());
           pout.add(pool.getId());
           pout.add(pool.getId());
-          pout.add("<a href=\"/miso/pool/" + pool.getId() + "\"><span class=\"ui-icon ui-icon-pencil\"></span></a>");
+
           arr.add(pout);
         }
+        j.put("pools", arr);
 
-        j.put(poolType, arr);
-      }
-
-        return j;
-      } catch (IOException e) {
-        log.debug("Failed", e);
-        return JSONUtils.SimpleJSONError("Failed: " + e.getMessage());
+      return j;
+    } catch (IOException e) {
+      log.debug("Failed", e);
+      return JSONUtils.SimpleJSONError("Failed: " + e.getMessage());
     }
   }
 
@@ -775,22 +768,17 @@ public class PoolControllerHelperService {
               info.append("<b>Sample:</b> <a href='/miso/sample/" + dilution.getLibrary().getSample().getId() + "'>"
                   + dilution.getLibrary().getSample().getAlias() + "(" + dilution.getLibrary().getSample().getName() + ")</a><br/>");
               if (pool.getPoolableElements().size() > 1) {
-                Map<Integer, TagBarcode> barcodes = dilution.getLibrary().getTagBarcodes();
-                if (!barcodes.isEmpty()) {
-                  String out = "<b>Barcodes:</b></br>";
-                  for (Integer key : barcodes.keySet()) {
-                    TagBarcode tb = barcodes.get(key);
-                    if (tb != null) {
-                      out += key + ":" + tb.getName() + " (" + tb.getSequence() + ")<br/>";
-                      out += "<span class='counter'><img src='/styles/images/status/green.png' border='0'></span>";
-                    } else {
-                      out += "Error retrieving barcode [" + key + "] for library " + dilution.getLibrary().getName()
-                          + ". Please check libraries for this pool.";
-                      out += "<span class='counter'><img src='/styles/images/status/red.png' border='0'></span>";
-                      break;
-                    }
+                if (!dilution.getLibrary().getTagBarcodes().isEmpty()) {
+                  info.append("<b>Barcodes:</b></br>");
+                  for (TagBarcode tb : dilution.getLibrary().getTagBarcodes()) {
+                    info.append(tb.getPosition());
+                    info.append(":");
+                    info.append(tb.getName());
+                    info.append(" (");
+                    info.append(tb.getSequence());
+                    info.append(")<br/>");
+                    info.append("<span class='counter'><img src='/styles/images/status/green.png' border='0'></span>");
                   }
-                  info.append(out);
                 } else {
                   info.append("<b>Barcode:</b>");
                   info.append("<b>Library:</b> <a href='/miso/library/" + dilution.getLibrary().getId() + "'>Choose tag barcode</a>");
@@ -825,10 +813,9 @@ public class PoolControllerHelperService {
           }
           JSONArray pout = new JSONArray();
           pout.add(libraryDilution.getName());
-          pout.add(libraryDilution.getLibrary().getName() + "-" + libraryDilution.getLibrary().getAlias());
-          pout.add(libraryDilution.getLibrary().getSample().getName() + "-" + libraryDilution.getLibrary().getSample().getAlias());
-          pout.add(libraryDilution.getLibrary().getSample().getProject().getName() + "-"
-              + libraryDilution.getLibrary().getSample().getProject().getAlias());
+          pout.add(libraryDilution.getConcentration());
+          pout.add(libraryDilution.getLibrary().getAlias() + " (" + libraryDilution.getLibrary().getName() + ")");
+          pout.add(libraryDilution.getLibrary().getSample().getAlias() + " (" + libraryDilution.getLibrary().getSample().getName() + ")");
           pout.add("<div style='cursor:pointer;' onmousedown=\"Pool.search.poolSearchSelectElement('" + libraryDilution.getId() + "', '"
               + libraryDilution.getName() + "')\"><span class=\"ui-icon ui-icon-plusthick\"></span></div>");
           arr.add(pout);
@@ -842,6 +829,55 @@ public class PoolControllerHelperService {
     } else {
       return JSONUtils.SimpleJSONError("No platform specified");
     }
+  }
+
+  public JSONObject deletePoolNote(HttpSession session, JSONObject json) {
+    Long poolId = json.getLong("poolId");
+    Long noteId = json.getLong("noteId");
+
+    try {
+      Pool pool = requestManager.getPoolById(poolId);
+      Note note = requestManager.getNoteById(noteId);
+      if (pool.getNotes().contains(note)) {
+        pool.getNotes().remove(note);
+        requestManager.deleteNote(note);
+        requestManager.savePool(pool);
+        return JSONUtils.SimpleJSONResponse("OK");
+      } else {
+        return JSONUtils.SimpleJSONError("Pool does not have note " + noteId + ". Cannot remove");
+      }
+    } catch (IOException e) {
+      log.error("cannot remove note", e);
+      return JSONUtils.SimpleJSONError("Cannot remove note: " + e.getMessage());
+    }
+  }
+
+  public JSONObject addPoolNote(HttpSession session, JSONObject json) {
+    Long poolId = json.getLong("poolId");
+    String internalOnly = json.getString("internalOnly");
+    String text = json.getString("text");
+
+    try {
+      User user = securityManager.getUserByLoginName(SecurityContextHolder.getContext().getAuthentication().getName());
+      Pool pool = requestManager.getPoolById(poolId);
+      Note note = new Note();
+
+      internalOnly = internalOnly.equals("on") ? "true" : "false";
+
+      note.setInternalOnly(Boolean.parseBoolean(internalOnly));
+      note.setText(text);
+      note.setOwner(user);
+      note.setCreationDate(new Date());
+      pool.getNotes().add(note);
+      requestManager.savePoolNote(pool, note);
+      pool.setLastModifier(user);
+      requestManager.savePool(pool);
+    } catch (IOException e) {
+      log.error("add pool note", e);
+      return JSONUtils.SimpleJSONError(e.getMessage());
+    }
+
+    return JSONUtils.SimpleJSONResponse("Note saved successfully");
   }
 
   public void setSecurityManager(SecurityManager securityManager) {

@@ -50,17 +50,19 @@ import org.krysalis.barcode4j.BarcodeGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.eaglegenomics.simlims.core.Note;
 import com.eaglegenomics.simlims.core.SecurityProfile;
 import com.eaglegenomics.simlims.core.User;
 import com.eaglegenomics.simlims.core.manager.SecurityManager;
-import com.google.json.JsonSanitizer;
+import com.google.common.collect.Maps;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONException;
 import net.sf.json.JSONObject;
+import net.sf.json.JsonConfig;
 import net.sourceforge.fluxion.ajax.Ajaxified;
 import net.sourceforge.fluxion.ajax.util.JSONUtils;
 import uk.ac.bbsrc.tgac.miso.core.data.Barcodable;
@@ -70,8 +72,10 @@ import uk.ac.bbsrc.tgac.miso.core.data.PrintJob;
 import uk.ac.bbsrc.tgac.miso.core.data.Project;
 import uk.ac.bbsrc.tgac.miso.core.data.Sample;
 import uk.ac.bbsrc.tgac.miso.core.data.TagBarcode;
+import uk.ac.bbsrc.tgac.miso.core.data.TagBarcodeFamily;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.LibraryDilution;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.LibraryImpl;
+import uk.ac.bbsrc.tgac.miso.core.data.impl.TargetedResequencing;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.emPCR;
 import uk.ac.bbsrc.tgac.miso.core.data.impl.emPCRDilution;
 import uk.ac.bbsrc.tgac.miso.core.data.type.LibraryType;
@@ -87,10 +91,10 @@ import uk.ac.bbsrc.tgac.miso.core.manager.RequestManager;
 import uk.ac.bbsrc.tgac.miso.core.service.naming.MisoNamingScheme;
 import uk.ac.bbsrc.tgac.miso.core.service.printing.MisoPrintService;
 import uk.ac.bbsrc.tgac.miso.core.service.printing.context.PrintContext;
-import uk.ac.bbsrc.tgac.miso.core.service.tagbarcode.TagBarcodeStrategy;
-import uk.ac.bbsrc.tgac.miso.core.service.tagbarcode.TagBarcodeStrategyResolverService;
+import uk.ac.bbsrc.tgac.miso.core.store.TagBarcodeStore;
 import uk.ac.bbsrc.tgac.miso.core.util.AliasComparator;
 import uk.ac.bbsrc.tgac.miso.core.util.LimsUtils;
+import uk.ac.bbsrc.tgac.miso.integration.context.ApplicationContextProvider;
 
 /**
  * uk.ac.bbsrc.tgac.miso.spring.ajax
@@ -116,12 +120,30 @@ public class LibraryControllerHelperService {
   @Autowired
   private PrintManager<MisoPrintService, Queue<?>> printManager;
   @Autowired
-  private TagBarcodeStrategyResolverService tagBarcodeStrategyResolverService;
+  private TagBarcodeStore tagBarcodeService;
   @Autowired
   private MisoNamingScheme<Sample> sampleNamingScheme;
   @Autowired
   private MisoNamingScheme<Library> libraryNamingScheme;
 
+  private static String prettyBarcodes(List<TagBarcode> tagBarcodes) {
+    if (tagBarcodes.isEmpty()) return "None";
+    StringBuilder sb = new StringBuilder();
+    boolean first = true;
+    for (TagBarcode barcode : tagBarcodes) {
+      if (barcode == null) continue;
+      if (first) {
+        first = false;
+      } else {
+        sb.append(", ");
+      }
+      sb.append(barcode.getName());
+      sb.append(" (");
+      sb.append(barcode.getSequence());
+      sb.append(")");
+    }
+    return sb.toString();
+  }
 
   /**
    * Returns a JSONObject containing the alias regex used by the current library naming scheme
@@ -289,7 +311,7 @@ public class LibraryControllerHelperService {
         }
       }
       PrintJob pj = printManager.print(thingsToPrint, mps.getName(), user);
-      return JSONUtils.SimpleJSONResponse("Job " + pj.getJobId() + " : Barcodes printed.");
+      return JSONUtils.SimpleJSONResponse("Job " + pj.getId() + " : Barcodes printed.");
     } catch (MisoPrintException e) {
       log.error("print barcodes", e);
       return JSONUtils.SimpleJSONError("Failed to print barcodes: " + e.getMessage());
@@ -341,7 +363,7 @@ public class LibraryControllerHelperService {
         }
       }
       PrintJob pj = printManager.print(thingsToPrint, mps.getName(), user);
-      return JSONUtils.SimpleJSONResponse("Job " + pj.getJobId() + " : Barcodes printed.");
+      return JSONUtils.SimpleJSONResponse("Job " + pj.getId() + " : Barcodes printed.");
     } catch (MisoPrintException e) {
       log.error("print barcodes", e);
       return JSONUtils.SimpleJSONError("Failed to print barcodes: " + e.getMessage());
@@ -428,20 +450,6 @@ public class LibraryControllerHelperService {
     }
   }
 
-  public JSONObject getBarcodesPositions(HttpSession session, JSONObject json) {
-    if (json.has("strategy")) {
-      TagBarcodeStrategy tbs = tagBarcodeStrategyResolverService.getTagBarcodeStrategy(json.getString("strategy"));
-      if (tbs != null) {
-        JSONObject j = new JSONObject();
-        j.put("numApplicableBarcodes", tbs.getNumApplicableBarcodes());
-        return j;
-      }
-      return JSONUtils.SimpleJSONError("No strategy found with the name: \"" + json.getString("strategy") + "\"");
-    } else {
-      return JSONUtils.SimpleJSONError("No valid strategy given");
-    }
-  }
-
   public JSONObject bulkSaveLibraries(HttpSession session, JSONObject json) {
     if (json.has("libraries")) {
       try {
@@ -471,7 +479,7 @@ public class LibraryControllerHelperService {
               String selectionType = j.getString("selectionType");
               String strategyType = j.getString("strategyType");
               String locationBarcode = j.getString("locationBarcode");
-              
+
               Library library = new LibraryImpl();
               library.setSample(sample);
 
@@ -498,18 +506,16 @@ public class LibraryControllerHelperService {
               if (j.has("tagBarcodes") && !isStringEmptyOrNull(j.getString("tagBarcodes"))
                   && !j.getString("tagBarcodes").contains("Select")) {
                 String[] codes = j.getString("tagBarcodes").split(Pattern.quote("|"));
-                HashMap<Integer, TagBarcode> barcodes = new HashMap<Integer, TagBarcode>();
-                int count = 1;
+                List<TagBarcode> barcodes = new ArrayList<TagBarcode>();
                 for (String code : codes) {
                   try {
                     long cl = Long.parseLong(code);
-                    barcodes.put(count, requestManager.getTagBarcodeById(cl));
+                    TagBarcode bc = tagBarcodeService.getTagBarcodeById(cl);
+                    barcodes.add(bc);
                   } catch (NumberFormatException e) {
                     log.error("cannot save library", e);
                     return JSONUtils.SimpleJSONError("Cannot save Library. It looks like there are tag barcodes for the library of "
                         + sample.getAlias() + ", but they cannot be processed");
-                  } finally {
-                    count++;
                   }
                 }
                 library.setTagBarcodes(barcodes);
@@ -553,30 +559,32 @@ public class LibraryControllerHelperService {
   }
 
   public JSONObject changePlatformName(HttpSession session, JSONObject json) {
+    // For whatever reason, Fluxion doesn't autowire this class correctly, so, we do it again.
+    if (tagBarcodeService == null) {
+      ApplicationContext ctxt = ApplicationContextProvider.getApplicationContext();
+      ctxt.getAutowireCapableBeanFactory().autowireBean(this);
+    }
     try {
       if (json.has("platform") && !isStringEmptyOrNull(json.getString("platform"))) {
         String platform = json.getString("platform");
-        Map<String, Object> map = new HashMap<String, Object>();
+        JSONObject result = new JSONObject();
 
         StringBuilder libsb = new StringBuilder();
         List<LibraryType> types = new ArrayList<LibraryType>(requestManager.listLibraryTypesByPlatform(platform));
         Collections.sort(types);
         for (LibraryType s : types) {
-          libsb.append("<option value='" + s.getLibraryTypeId() + "'>" + s.getDescription() + "</option>");
+          libsb.append("<option value='" + s.getId() + "'>" + s.getDescription() + "</option>");
         }
+        result.put("libraryTypes", libsb.toString());
 
-        StringBuilder tagsb = new StringBuilder();
-        List<TagBarcodeStrategy> strategies = new ArrayList<TagBarcodeStrategy>(
-            tagBarcodeStrategyResolverService.getTagBarcodeStrategiesByPlatform(PlatformType.get(platform)));
-        tagsb.append("<option value=''>No Barcode Strategy</option>");
-        for (TagBarcodeStrategy tb : strategies) {
-          tagsb.append("<option value='" + tb.getName() + "'>" + tb.getName() + "</option>");
-        }
+        JSONArray families = new JSONArray();
+        JsonConfig config = new JsonConfig();
+        config.setExcludes(new String[] { "family" });
+        families.add(TagBarcodeFamily.NULL);
+        families.addAll(tagBarcodeService.getTagBarcodeFamiliesByPlatform(PlatformType.get(platform)), config);
+        result.put("barcodeFamilies", families);
 
-        map.put("libraryTypes", libsb.toString());
-        map.put("tagBarcodeStrategies", tagsb.toString());
-
-        return JSONUtils.JSONObjectResponse(map);
+        return result;
       }
     } catch (IOException e) {
       log.error("Failed to retrieve library types given platform type: ", e);
@@ -587,18 +595,15 @@ public class LibraryControllerHelperService {
 
   public JSONObject getTagBarcodesForStrategy(HttpSession session, JSONObject json) {
     if (json.has("strategy")) {
-      TagBarcodeStrategy tbs = tagBarcodeStrategyResolverService.getTagBarcodeStrategy(json.getString("strategy"));
+      TagBarcodeFamily tbs = tagBarcodeService.getTagBarcodeFamilyByName(json.getString("strategy"));
       if (tbs != null) {
         Map<String, Object> map = new HashMap<String, Object>();
-        Map<Integer, Set<TagBarcode>> barcodes = tbs.getApplicableBarcodes();
         StringBuilder tagsb = new StringBuilder();
-        for (Integer i : barcodes.keySet()) {
+        for (int i = 1; i <= tbs.getMaximumNumber(); i++) {
           // select
           tagsb.append("Barcode " + i + ": " + "<select id='tagBarcodes[\"" + i + "\"]' name='tagBarcodes[\"" + i + "\"]'>");
           tagsb.append("<option value=''>No Barcode</option>");
-          List<TagBarcode> bs = new ArrayList<TagBarcode>(barcodes.get(i));
-          Collections.sort(bs);
-          for (TagBarcode tb : bs) {
+          for (TagBarcode tb : tbs.getBarcodesForPosition(i)) {
             // option
             tagsb.append("<option value='" + tb.getId() + "'>" + tb.getName() + "</option>");
           }
@@ -631,6 +636,33 @@ public class LibraryControllerHelperService {
     return JSONUtils.SimpleJSONError("Cannot list all Library QC Types");
   }
 
+  public JSONObject getTargetedResequencingTypes(HttpSession session, JSONObject json) {
+    Long libraryPrepKitId = null;
+    if (json.has("libraryPrepKitId")) {
+      libraryPrepKitId = json.getLong("libraryPrepKitId");
+    }
+
+    try {
+      Collection<TargetedResequencing> targetedResequencings = requestManager.listAllTargetedResequencing();
+      JSONArray targetedResequencingCollection = new JSONArray();
+      for (TargetedResequencing targetedResequencing : targetedResequencings) {
+        if (libraryPrepKitId != null && libraryPrepKitId == targetedResequencing.getKitDescriptor().getId()) {
+          Map<String, Object> targetedResequencingMap = Maps.newHashMap();
+          targetedResequencingMap.put("targetedSequencingId", targetedResequencing.getTargetedResequencingId());
+          targetedResequencingMap.put("alias", targetedResequencing.getAlias());
+          targetedResequencingMap.put("kitDescriptorId", targetedResequencing.getKitDescriptor().getId());
+          targetedResequencingCollection.add(targetedResequencingMap);
+        }
+      }
+      Map<String, Object> targetedResequencingMap = Maps.newHashMap();
+      targetedResequencingMap.put("targetedResequencings", targetedResequencingCollection);
+      return JSONUtils.JSONObjectResponse(targetedResequencingMap);
+    } catch (IOException e) {
+      log.error("Cannot list all Targeted Resequencing entries ", e);
+    }
+    return JSONUtils.SimpleJSONError("Cannot list all Targeted Resequencing entries");
+  }
+
   public JSONObject addLibraryQC(HttpSession session, JSONObject json) {
     try {
       for (Object k : json.keySet()) {
@@ -661,7 +693,7 @@ public class LibraryControllerHelperService {
           sb.append("<td>" + qc.getQcCreator() + "</td>");
           sb.append("<td>" + qc.getQcDate() + "</td>");
           sb.append("<td>" + qc.getQcType().getName() + "</td>");
-          sb.append("<td>" + qc.getResults() + " " + qc.getQcType().getUnits() + "</td>");
+          sb.append("<td>" + LimsUtils.round(qc.getResults(), 2) + " " + qc.getQcType().getUnits() + "</td>");
           sb.append("<td>" + qc.getInsertSize() + " bp</td>");
           sb.append("</tr>");
         }
@@ -739,12 +771,17 @@ public class LibraryControllerHelperService {
         newDilution.setDilutionCreator(json.getString("dilutionCreator"));
         newDilution.setCreationDate(new SimpleDateFormat("dd/MM/yyyy").parse(json.getString("dilutionDate")));
         newDilution.setConcentration(Double.parseDouble(json.getString("results")));
+        Long libraryDilutionTargetedResequencingId = Long.parseLong(json.getString("libraryDilutionTargetedResequencing"));
+        if (libraryDilutionTargetedResequencingId > 0) {
+          TargetedResequencing targetedResequencing = requestManager.getTargetedResequencingById(libraryDilutionTargetedResequencingId);
+          newDilution.setTargetedResequencing(targetedResequencing);
+        }
         library.addDilution(newDilution);
         requestManager.saveLibraryDilution(newDilution);
 
         StringBuilder sb = new StringBuilder();
         sb.append("<tr>");
-        sb.append("<th>LD Name</th><th>Done By</th><th>Date</th><th>Results</th><th>ID barcode</th>");
+        sb.append("<th>LD Name</th><th>Done By</th><th>Date</th><th>Results</th><th>Targeted Resequencing</th><th>ID barcode</th>");
         if (!library.getPlatformName().equals("Illumina")) {
           sb.append("<th>Add emPCR</th>");
         }
@@ -757,7 +794,14 @@ public class LibraryControllerHelperService {
           sb.append("<td>" + dil.getName() + "</td>");
           sb.append("<td>" + dil.getDilutionCreator() + "</td>");
           sb.append("<td>" + date.format(dil.getCreationDate()) + "</td>");
-          sb.append("<td>" + dil.getConcentration() + " " + dil.getUnits() + "</td>");
+          sb.append("<td>" + LimsUtils.round(dil.getConcentration(), 2) + " " + dil.getUnits() + "</td>");
+          sb.append("<td>");
+          if (dil.getTargetedResequencing() == null) {
+            sb.append("NONE");
+          } else {
+            sb.append(dil.getTargetedResequencing().getAlias());
+          }
+          sb.append("</td>");
           sb.append("<td>");
 
           try {
@@ -1216,16 +1260,23 @@ public class LibraryControllerHelperService {
       JSONObject j = new JSONObject();
       JSONArray jsonArray = new JSONArray();
       for (Library library : requestManager.listAllLibraries()) {
+        JSONArray inner = new JSONArray();
+        String identificationBarcode = library.getIdentificationBarcode();
         String qcpassed = "Unknown";
         if (library.getQcPassed() != null) {
           qcpassed = library.getQcPassed().toString();
         }
-        String identificationBarcode = library.getIdentificationBarcode();
-        
-        jsonArray.add(JsonSanitizer.sanitize("[\"" + library.getName() + "\",\"" + library.getAlias() + "\",\"" + library.getLibraryType().getDescription() + "\",\""
-            + library.getSample().getName() + "\",\"" + qcpassed + "\",\"" + "<a href=\"/miso/library/" + library.getId()
-            + "\"><span class=\"ui-icon ui-icon-pencil\"></span></a>" + "\",\""
-            + (isStringEmptyOrNull(identificationBarcode) ? "" : identificationBarcode) + "\"]"));
+        inner.add("<input type=\"checkbox\" value=\"" + library.getId() + "\" class=\"bulkCheckbox\" id=\"bulk_" + library.getId() + "\">");
+        inner.add(TableHelper.hyperLinkify("/miso/library/" + library.getId(), library.getName()));
+        inner.add(TableHelper.hyperLinkify("/miso/library/" + library.getId(), library.getAlias()));
+        inner.add(library.getLibraryType().getDescription());
+        inner.add(TableHelper.hyperLinkify("/miso/sample/" + library.getSample().getId(),
+            library.getSample().getName() + " (" + library.getSample().getAlias() + ")"));
+        inner.add(qcpassed);
+        inner.add(prettyBarcodes(library.getTagBarcodes()));
+        inner.add((isStringEmptyOrNull(identificationBarcode) ? "" : identificationBarcode));
+
+        jsonArray.add(inner);
       }
       j.put("array", jsonArray);
       return j;
@@ -1257,10 +1308,6 @@ public class LibraryControllerHelperService {
 
   public void setPrintManager(PrintManager<MisoPrintService, Queue<?>> printManager) {
     this.printManager = printManager;
-  }
-
-  public void setTagBarcodeStrategyResolverService(TagBarcodeStrategyResolverService tagBarcodeStrategyResolverService) {
-    this.tagBarcodeStrategyResolverService = tagBarcodeStrategyResolverService;
   }
 
   public void setSampleNamingScheme(MisoNamingScheme<Sample> sampleNamingScheme) {

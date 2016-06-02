@@ -55,23 +55,6 @@ public interface Run extends SecurableByProfile, Submittable<Document>, Comparab
   /** Field PREFIX */
   public static final String PREFIX = "RUN";
 
-  /**
-   * Returns the runId of this Run object.
-   * 
-   * @return Long runId.
-   */
-  @Deprecated
-  public Long getRunId();
-
-  /**
-   * Sets the runId of this Run object.
-   * 
-   * @param runId
-   *          runId.
-   */
-  @Deprecated
-  public void setRunId(Long runId);
-
   public void setId(long id);
 
   /**
@@ -295,4 +278,8 @@ public interface Run extends SecurableByProfile, Submittable<Document>, Comparab
    * Sets the user who last modified this item. It should always be set to the current user on save.
    */
   public void setLastModifier(User user);
+
+  public Long getSequencingParametersId();
+
+  public void setSequencingParametersId(Long id);
 }
